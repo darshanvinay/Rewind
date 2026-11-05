@@ -97,7 +97,17 @@ pub fn store_file(
     sizes: ChunkSizes,
 ) -> Result<FileManifest> {
     sizes.validate()?;
-    let file = File::open(path)?;
+    store_open_file(store, File::open(path)?, sizes)
+}
+
+// Directory capture opens files relative to directory handles with NOFOLLOW.
+// Keep the public path-based Phase 1 API unchanged while reusing its pipeline.
+pub(crate) fn store_open_file(
+    store: &ChunkStore,
+    file: File,
+    sizes: ChunkSizes,
+) -> Result<FileManifest> {
+    sizes.validate()?;
     if !file.metadata()?.is_file() {
         return Err(Error::Invalid("input must be a regular file".into()));
     }

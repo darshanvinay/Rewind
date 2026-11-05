@@ -340,6 +340,7 @@ dependencies = [
  "blake3",
  "fastcdc",
  "proptest",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",

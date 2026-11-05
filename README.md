@@ -4,7 +4,8 @@ Rewind is a local-first file-history engine under construction. It aims to make
 previous file contents recoverable without manual backup copies or Git commits.
 Phase 1 provides the storage foundation: streaming FastCDC chunking, immutable
 BLAKE3-addressed chunks, deduplication, versioned JSON file manifests, verified
-reconstruction, and a minimal CLI. Capture is manual in this phase.
+reconstruction, and a minimal CLI. Phase 2 now adds directory Merkle nodes and manual snapshot
+creation; snapshot listing, restoration and diffing await later milestones.
 
 ## Build and use
 
@@ -19,6 +20,8 @@ cargo test
 # store prints a path such as .rewind/manifests/<hash>.json
 /path/to/rewind/target/release/rewind verify .rewind/manifests/<hash>.json
 /path/to/rewind/target/release/rewind restore .rewind/manifests/<hash>.json recovered.bin
+# Unix: capture a directory; prints a unique snapshot ID
+/path/to/rewind/target/release/rewind snapshot ./project
 ```
 
 Commands use `.rewind` in the current working directory. Quote paths containing
@@ -44,13 +47,55 @@ only the manifest path on stdout. Chunk sizes are configurable through the libra
   consistency during concurrent edits, or protection against hostile store mutation.
 * Crash leftovers are ignored, not automatically deleted. Interrupted ingestion
   may leave unreferenced chunks. Do not delete temporary objects during a writer's run.
-* No watchers, directory trees, snapshots, retention, FUSE, or benchmarks yet.
-  No performance advantage is claimed.
+* Snapshot capture currently requires Unix. It rejects symlinks, special files,
+  non-UTF-8 names/paths, unsupported portable names, and directory depth beyond 256.
+  The actual store is excluded if nested inside the source; other `.rewind`
+  directories are ordinary source data. Capturing the store itself is rejected.
+* Capture traverses and reads the full source tree each time. Content identities
+  deduplicate unchanged subtrees; this does not provide incremental scanning or
+  point-in-time consistency with concurrent edits. No performance advantage is claimed.
+* No snapshot listing/restoration/diff commands, watchers, retention, FUSE, or
+  benchmarks yet. Single-file restore remains available.
 
 Tests use isolated temporary directories and cover arbitrary bytes, large binary
 input, empty/repeated/text input, deduplication, corrupt/missing chunks, malformed
 manifests, stale temporary writes, output errors, and atomic failed restoration.
 
 Validation: Rust 1.99.1 on macOS aarch64; formatting, Clippy with warnings denied,
-and all 7 integration tests passed (including 32 property cases and a CLI BLAKE3
-round trip). See [validation details](docs/validation.md).
+and all 23 tests passed (22 integration tests and one unit test, including three
+property suites totaling 72 cases). See [validation details](docs/validation.md).
+
+## Phase 2 progress: Milestone A
+
+`tree::DirectoryNode` represents an immutable directory's immediate children.
+`DirectoryEntry` pairs a validated name with an `EntryTarget`: either a Phase 1
+file-manifest hash and file length, or another directory-node hash. Constructors
+sort entries; canonical versioned JSON defines the BLAKE3 identity. Empty nodes
+represent empty directories. Nodes are stored under `trees/<2 hex>/<62 hex>` using
+the existing no-clobber persistence helper and verified when loaded.
+
+The node API is a library foundation. References may be unresolved: saving a node
+does not recursively validate or persist descendants. The Milestone B capture API
+below constructs and persists the graph bottom-up. See [the node format and policies](docs/architecture.md#directory-merkle-nodes-milestone-a).
+
+## Phase 2 progress: Milestone B
+
+`rewind snapshot <directory>` uses `snapshot::create_snapshot` to store files
+through Phase 1, build directory nodes bottom-up, then publish a versioned record
+in `.rewind/snapshots/<id>.json`. It prints only the 64-digit snapshot ID. The
+record holds the root hash, canonical absolute source path and Unix completion
+timestamp (seconds plus fractional nanoseconds). Identical source states yield
+identical roots but distinct IDs. Capturing a source does not modify its files;
+when the store is nested in the source, only the excluded store receives writes.
+
+Traversal opens children relative to directory handles with `NOFOLLOW` on Unix,
+preventing descendant symlinks from redirecting capture. No unsafe Rust is added.
+`rustix` supplies safe OS interfaces. This initial implementation returns an
+explicit unsupported error on non-Unix platforms; the Phase 1 commands remain
+unchanged. Permissions, times, ownership and hard-link identity are not preserved.
+
+Records become visible only after their referenced content has been stored.
+Failed capture can leave unreferenced immutable objects or temporary files.
+A publication sync/cleanup error may occur after the record is already visible,
+so an error is not a rollback guarantee. See [consistency details](docs/architecture.md#manual-snapshot-creation-milestone-b).
+Snapshot listing/restoration will be Milestone C; diffing will be Milestone D.
