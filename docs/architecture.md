@@ -1,242 +1,268 @@
-# Architecture
+# Rewind architecture — Phase 2
 
-## Scope and evolution
+## Components and data flow
 
-The library owns chunking, identities, immutable object storage, and file recipes.
-The CLI only parses commands and connects these APIs. Phase 1 captures individual
-regular files manually. Planned later layers are filesystem event ingestion,
-immutable directory Merkle trees, snapshot roots, diffs and selective restore,
-transactional snapshot commits, retention and coordinated mark-and-sweep GC.
-Directory nodes and manual snapshot capture are implemented through Phase 2
-Milestone B. Snapshot listing/restoration, diffing and later layers remain
-unimplemented.
+The storage engine is independent of the CLI. `main.rs` parses commands and handles
+stdout/stderr; library APIs own capture, validation, persistence and reconstruction.
 
-## Data flow and chunking
-
-`Read -> FastCDC 2020 -> BLAKE3 -> ChunkStore -> FileManifest v1`
-
-The maintained `fastcdc` crate avoids implementing the subtle boundary algorithm
-ourselves. Its v2020 streaming iterator reads into a maximum-chunk-sized buffer
-and returns one owned chunk at a time. There is some per-chunk allocation; no
-whole-file buffer is retained. Defaults are 16/64/256 KiB. Library callers can
-configure sizes within crate bounds and our 16 MiB safety cap. The chosen algorithm
-and parameters are persisted for reproducibility. EOF can yield a short final
-chunk; empty files have no chunks. Reconstruction concatenates verified chunks,
-checks lengths and checks the whole-file digest (including order). Manifest memory
-is O(number of chunks); streaming data memory is O(max chunk size).
-
-## Identity and layout
-
-BLAKE3's full 256-bit digest is encoded as 64 lowercase hexadecimal characters.
-Gear hashes used for boundary selection are never storage identities. Hashes are
-validated before becoming path components.
-
+```text
+regular file -> FastCDC -> BLAKE3 chunks -> ordered file manifest
+                                            |
+                   sorted directory entries + child directory hashes
+                                            |
+                                  directory Merkle root
+                                            |
+                     snapshot record (ID, timestamp, source path)
 ```
+
+| Module | Responsibility |
+| --- | --- |
+| `chunking` | Validate configurable min/target/max chunk sizes. |
+| `hashing` | Full BLAKE3 digest and canonical lowercase 64-hex identity validation. |
+| `storage` | Bounded regular-object reads, durable directories, no-clobber publication, chunk storage. |
+| `manifest` | File recipes, ingestion, identity loading, reconstruction, file verify/restore. |
+| `tree` | Sorted directory nodes, canonical bytes, validation and content-addressed persistence. |
+| `snapshot` | Descriptor-relative capture and validated history loading/listing. |
+| `snapshot_restore` | Private staging-tree reconstruction and atomic no-replace publication. |
+| `diff` | Merkle pruning and relative-path content-change reports. |
+| `error` | Structured `Result` errors for I/O, metadata, corruption and chunking. |
+
+The public file APIs from Phase 1 remain. Capture passes opened files to a small
+crate-private ingestion helper, avoiding a path reopen after a no-follow lookup.
+Private fields/read-only getters protect directory nodes and snapshot records;
+private wire structs are validated before returning them. `EntryTarget` is an enum
+so a file reference cannot accidentally carry directory-only fields. Borrowed
+`&File` handles keep parent directories alive during recursive operations.
+There is no unsafe Rust in Rewind and no new runtime framework or storage database.
+
+## Chunking and identities
+
+The maintained `fastcdc` 5 crate supplies the streaming FastCDC 2020 implementation;
+Rewind does not reimplement its boundary algorithm. Default sizes are 16 KiB minimum,
+64 KiB target and 256 KiB maximum. Sizes must satisfy crate bounds, be even, and
+obey min <= target <= max with a 16 MiB cap. The current crate defaults use
+normalization level 1 and seed 0. Dependencies are pinned by `Cargo.lock`.
+
+The iterator retains a maximum-sized buffer and yields one owned chunk at a time.
+There is per-chunk allocation/copying, not a whole-file buffer. EOF may yield a
+short final chunk; empty files have no chunks. Only the full 256-bit BLAKE3 digest
+is an object identity; FastCDC's Gear hash is used only for boundary selection.
+
+## On-disk formats
+
+Paths are relative to the initialized store root. `init` creates `chunks` and
+`manifests`; other namespaces are lazy. There is no separate repository-format
+marker or migration system yet.
+
+```text
 .rewind/
-  chunks/ab/<remaining 62 hex characters>
-  manifests/<BLAKE3 of serialized manifest bytes>.json
+  chunks/ab/<remaining 62 hex>
+  manifests/<64 hex>.json
+  trees/ab/<remaining 62 hex>
+  snapshots/<opaque 64-hex ID>.json
 ```
 
-A two-digit shard limits directory fanout. Objects are raw, uncompressed bytes.
-Manifest v1 JSON rejects unknown fields, unsupported versions/algorithms, invalid
-hashes, zero or excessive lengths, and inconsistent total lengths. Its whole-file
-hash detects incorrect ordering. JSON paths supplied to verify/restore need not
-have an identity filename: verification checks their recipe and content, not
-provenance or authenticity. Future versions require explicit migration/dispatch.
+- **Chunks:** raw immutable bytes without a version header, keyed by BLAKE3.
+- **File manifest v1:** compact JSON with `version`, `algorithm` (currently
+  `fastcdc-2020-blake3`), `chunking` (`min`, `avg`, `max`), `length`, `file_hash`,
+  and ordered `chunks` (`hash`, `length`). Identity is BLAKE3 of saved JSON bytes.
+  Unsupported versions/algorithms, unknown/duplicate fields, invalid hashes,
+  zero/excessive chunk lengths and inconsistent totals are rejected. Empty-file
+  whole hashes are checked during reconstruction just like every other file.
+- **Directory node v1:** `version`, `object: "rewind-directory"`, and `entries`.
+  Each entry has `name` and `target`; file targets contain `kind: "file"`,
+  `manifest`, `length`; directories contain `kind: "directory"`, `tree`.
+  Strictly unique entry names sort by exact UTF-8 bytes. Identity is BLAKE3 of
+  compact JSON in that exact schema order, standard serde_json escaping, unsigned
+  decimal integers, no whitespace/final newline. Loading must match reserialization
+  exactly; alternate key order/escaping/whitespace is not canonical. Tests pin
+  canonical bytes. Encoding changes require explicit format-version decisions.
+- **Snapshot record v1:** `version`, `id`, `root_hash`, `source_path`,
+  `created_unix_seconds`, `created_nanoseconds`. Timestamp is taken after traversal
+  and before publication. ID is a domain-separated BLAKE3 digest of a uniquely
+  allocated random tempfile basename, root hash and timestamp. It is opaque, not a
+  hash of record bytes. Source is a canonical absolute UTF-8 Unix path at capture
+  time. Record loading validates schema/version, filename/ID match, root identity
+  syntax, nanosecond range and absolute source path without NUL/dot components.
+  JSON order/whitespace need not be canonical for history records.
 
-## Persistence and failures
+A two-digit shard reduces per-directory object fanout. Reads cap chunks at 16 MiB,
+manifests at 64 MiB, nodes at 16 MiB and records at 64 KiB. A shared reader rejects
+non-regular/symlink objects, checks the opened descriptor and length, then bounds
+bytes read if a file grows. Unix final opens use NOFOLLOW/NONBLOCK/CLOEXEC; non-Unix
+has metadata checks without equivalent final-open guarantees and is unvalidated.
+Ancestor paths still depend on the trusted-store contract.
 
-For each new object: create a uniquely named tempfile in the destination directory,
-write all bytes, flush, `sync_all`, and use `tempfile::persist_noclobber`. This API
-publishes without replacing an existing path (on Unix via hard-link semantics),
-unlike ordinary rename. On an existing chunk, read and hash it before accepting
-successful deduplication; existing manifest bytes must match exactly.
+`FileManifest::load(path)` validates a user-supplied recipe. `load_by_hash` additionally
+checks the identity against exactly the bytes parsed and is used for snapshot
+references. Duplicate writes verify existing objects and never silently repair them.
+The shared `publish_if_missing` policy verifies first and returns early only on
+success. Chunks use the existing `get` BLAKE3 check; manifests compare bounded
+existing bytes with validated, freshly hashed bytes; nodes use their hash/schema
+loader. Only an I/O NotFound selects the unchanged durable publication path.
+Permission errors, corruption, invalid types and oversize objects are errors,
+not cache misses. If no-clobber publication loses a race, the winner is verified
+again. There is no existence-only shortcut, trusted-filename cache, automatic
+repair, or source mtime-based skip. All source bytes are still read/hashed.
+Saving a standalone node does not verify its descendants; snapshot creation builds
+and persists the reachable graph bottom-up before committing history.
 
-After publication sync the parent directory on Unix. Newly created shard and store
-directories and their parents are also synced. Filesystem errors propagate. A sync
-failure can mean publication already happened: callers may retry, but must not
-interpret an error as proof of rollback. Hardware/filesystem durability depends on
-honoring sync; network filesystems are outside the guarantee. Non-Unix has file
-sync and no-clobber publication, but no portable directory-sync guarantee. macOS
-`sync_all` does not request Apple's stronger F_FULLFSYNC drive-cache barrier.
-These are filesystem-level durability measures, not a universal power-loss promise.
+## Snapshot capture and Merkle behavior
 
-Named temporary files clean up on ordinary failure via RAII. A process crash can
-leave temporary files, including a second hard link to a published object. Names
-outside the deterministic object paths are never treated as committed objects.
-They are left alone to avoid racing active operations. No temp scavenger, concurrent
-GC, cross-object transaction, or fault-injection crash harness exists yet.
+1. Open the source directory without following a symlink root. Normalize trailing
+   `/` or `/.`, canonicalize its path and check that it matches the opened device/inode.
+   Ancestor symlinks in the user-supplied path can resolve normally. Reject a source
+   equal to or inside the store.
+2. Read/sort child names from open directory handles. Inspect children with
+   non-following `statat`. Open children relative to those handles, with NOFOLLOW;
+   directory opens require DIRECTORY and regular-file opens also use NONBLOCK.
+   The opened file must still be regular. Reject symlinks, dangling links and
+   special files rather than silently dropping them.
+3. Exclude the actual nested store by directory device/inode. Other `.rewind`
+   directories remain ordinary data. A parent that becomes empty is preserved.
+4. Stream file bytes through Phase 1 and save manifests. Recurse into directories
+   and save canonical nodes only after their children are stored. Root depth is
+   zero; traversed directories deeper than 256 are rejected.
+5. Create a unique snapshot record only after the root is saved. Publish it through
+   the same synced no-clobber helper. No global history index is required.
 
-A manifest is published only after all its chunks. A crash during store can leak
-unreferenced chunks but cannot publish a recipe before its writes have completed.
-There is no transactional snapshot root. Restore stages the complete result beside
-its destination, verifies it, syncs it, publishes without replacement, and syncs
-the directory. Generic `reconstruct` streams to a caller's writer and may emit a
-verified prefix before a later error; filesystem callers should use `restore_file`.
+A file change alters its manifest, parent node, and affected ancestors. Unchanged
+sibling subtrees retain their identities and reuse stored nodes. Independent
+captures with identical relative contents have identical roots, while IDs and
+capture metadata remain distinct. This is structural reuse, not incremental
+filesystem scanning: every capture still reads the entire source tree.
 
-## Concurrency and trust
+Concurrent edits can produce a graph of bytes observed at different times; there
+is no filesystem transaction or consistent source view. Disappearing entries and
+read errors abort, but other concurrent edits need not be detected. Renaming an
+opened directory does not redirect its handle. Quiesce a source when logical
+point-in-time consistency is required. Mounts can be traversed; arbitrary hostile
+mount/device changes are outside the contract.
 
-Single writer is a caller contract, not an enforced lock. Future GC must coordinate
-publication, reader liveness and reachability before deletion; this API does not
-promise safety with concurrent removal. Source files can change during capture:
-the manifest describes the bytes observed, not a point-in-time source snapshot.
-The store is trusted local storage; this phase does not defend against symlink
-races or malicious filesystem changes. Corruption checks are not authentication.
+## History, restoration and diff
 
-## Phase 2 proposal
+History scans recognized `<64 lowercase hex>.json` filenames only. Temporary and
+unrelated filenames are ignored. A missing history namespace is empty history;
+non-directory/symlink namespaces and malformed recognized records are errors.
+Results sort by (seconds, nanoseconds, ID), with source paths quoted to escape
+control characters. Listing validates records only, not the content graph.
 
-Introduce versioned immutable directory nodes with sorted names and references to
-file manifests, child nodes and explicitly specified metadata. Hash canonical node
-encodings. First build full directory capture with a defined symlink policy and
-stable deterministic roots; then reuse unchanged subtrees incrementally. Publish
-snapshot records only after all reachable objects, with an atomic durable root
-commit protocol. Test traversal safety, deterministic roots, subtree reuse, diffs,
-selective restoration and crash boundaries before adding watchers or retention.
+Snapshot restore resolves the user-selected existing parent and store, rejects
+outputs inside the store/recorded source location, and refuses every existing
+output path—including symlinks and empty directories. It creates a private sibling
+`.rewind-restore-*` stage. Names are validated single components; directory creation
+never reuses an existing entry. File creation is exclusive and no-follow. This
+also catches case-folding/Unicode-normalization collisions on the destination.
+Directories/files use 0700/0600, subject to umask; original metadata is not restored.
 
-## Directory Merkle nodes (Milestone A)
+Every directory node is hash/schema-verified before use; every file manifest is
+identity/schema-verified and its declared length checked. Phase 1 reconstructs
+ordered chunks, checks each chunk identity/length and the whole-file hash. Files
+are synced and directories synced bottom-up. Only then is the complete stage
+published using `renameat_with(NOREPLACE)`: macOS `renameatx_np(RENAME_EXCL)` or
+Linux `renameat2(RENAME_NOREPLACE)`. There is no ordinary-rename fallback. Unsupported
+kernels/filesystems fail. The destination parent is synced after publication.
+The live source is never used to reconstruct data and may no longer exist.
 
-The new `tree` module adds immutable recipes above Phase 1:
+Ordinary restore failure explicitly closes/removes staging, reporting cleanup
+errors too. A `Result`-returning closure centralizes that cleanup even when `?`
+propagates a deep traversal error. User-supplied parent-path aliases are resolved
+before staging; the parent must remain trusted and stable. Creation/cleanup still
+use paths, even though child writes and final rename use anchored handles. A saved
+source path is a location guard, not a permanent identity after arbitrary renames.
 
-```
-snapshot record (ID, source path, timestamp)
-  -> root directory-node hash
-     -> child directory-node hash
-     -> file-manifest hash -> ordered chunk hashes
-```
+Diff validates both records and root nodes (one root load if equal). Equal root
+hashes return no changes without descending. Unequal directories merge sorted
+child slices, recursing only into unequal directory identities. Equal file
+manifest/length pairs are skipped; changed references are loaded by hash and
+compared by `(file_hash, length)` after checking lengths against node entries.
+Rechunking unchanged bytes therefore need not produce a content modification.
+Added/deleted directories expand to all descendants, including empties. Type
+replacements emit delete+add; renames are not detected. Paths sort by UTF-8 bytes,
+with deletion before addition at a shared path. This report is not a mutation plan.
 
-A node contains `version: 1`, `object: "rewind-directory"`, and an `entries` array.
-Each entry has `name` followed by `target`. A file target has `kind: "file"`,
-`manifest` (the hash of exactly the bytes saved by `FileManifest::save`), and
-`length` (logical bytes). A directory target has `kind: "directory"` and `tree`.
-These typed references prevent confusing a raw chunk with a manifest or directory.
-Only file bytes and hierarchy are represented; there are no permissions, times,
-ownership, ACLs, xattrs, sparse extent maps or hard-link relationships. Restored
-files will be ordinary independent files; filesystem defaults determine metadata.
+**Diff does not read chunks or equal descendants to look for corruption.** It
+compares recorded byte identities and verifies metadata it actually reads. A clean
+diff is not evidence that either archive can be restored. Tests deliberately remove
+an unchanged subtree to prove pruning; other tests reject damaged visited nodes.
+Results are fully collected before printing, so a later metadata error yields no
+partial successful-looking report. Stdout failures propagate as errors too.
 
-Version 1 canonical encoding is compact `serde_json` UTF-8 with fields in the
-schema order above, entries sorted by exact UTF-8 name bytes, no insignificant
-whitespace or final newline, and the serializer's standard JSON escaping. Integer
-values use unsigned decimal JSON numbers. Canonical-byte tests pin this contract;
-changing it requires a new format version. Input must match reserialization
-exactly, so alternate key order, duplicate keys, alternate escapes and whitespace
-cannot introduce multiple stored encodings. Unknown fields/types/versions,
-unsorted or duplicate names, and invalid hashes are rejected. A node is limited
-to 16 MiB serialized bytes. Nodes use no unordered maps or timestamps.
+## Durability and security boundary
 
-`DirectoryNode::new` takes ownership of a vector and sorts it once. Fields stay
-private, and `entries()` borrows a read-only slice rather than cloning the vector.
-The `EntryTarget` Rust enum carries different fields for each child kind. Errors
-use the existing `Result` type so callers must handle failed validation or I/O.
-Node parsing uses a private wire structure, then validates it before returning a
-node. Node hashing and saving revalidate all entries as defense in depth.
+New objects use unique same-filesystem temporary files: write all bytes, flush,
+`sync_all`, then `tempfile::persist_noclobber`. On Unix this uses hard-link style
+publication rather than replacing an existing object with ordinary rename. Sync
+the parent after publication. Newly created directories and their parents are
+synced, including `.` for a relative top-level store. File/directory errors propagate.
+Symlink leaf directory namespaces are rejected when created/validated.
 
-Nodes live at `.rewind/trees/<first 2 hex>/<remaining 62 hex>`. The namespace is
-created lazily on first save, so old stores remain compatible. Saving reuses
-`storage::publish`: synced temporary file, no-clobber publication, Unix directory
-syncs. Existing nodes are hash- and schema-verified before accepting deduplication.
-Loading reads at most 16 MiB plus one byte, checks the requested BLAKE3 identity,
-and validates the canonical schema. Phase 1's platform durability and single-writer
-limits still apply. `DirectoryNode::save` does not verify descendants: this permits
-bottom-up construction. Milestone B capture ensures its reachable graph is stored
-before publishing a snapshot record.
+Before snapshot publication, failure may leave unreferenced immutable objects but
+no new history record. Tests inject an error after tempfile sync and before final
+publication, and test directory-sync errors and blocked history paths. These are
+ordinary fault tests, not abrupt-kill/power-loss simulations. Once publication
+occurs, a parent-sync or cleanup failure can return an error with the object/record
+or complete restored output already visible. Error is not a rollback guarantee.
+Tempfiles/hard links and partial restore stages can survive interruption; no
+scavenger, transaction recovery journal, retention or GC protocol exists. Retrying
+after a directory-sync error is not a tested durability-recovery protocol; existing
+objects/directories are not globally re-synced or repaired on open.
 
-If a leaf changes, its manifest hash changes, which changes its parent node and
-each ancestor up to the root. Sibling subtrees retain their identities and reuse
-the same stored nodes. A future diff can compare hashes to skip equal subtrees.
-This is structural reuse, not incremental filesystem scanning: Milestone B
-traverses and reads the complete source tree. Snapshot IDs and capture times
-will belong in separate records, so identical states can have equal root hashes
-while captures remain distinct history entries.
+Filesystem/hardware must honor sync. Non-Unix lacks the portable directory-sync
+behavior. macOS does not request F_FULLFSYNC's stronger drive-cache barrier.
+Network filesystem semantics and power-loss durability are untested. Single writer
+is an unenforced caller contract; readers are not coordinated with deletion/GC.
+The store and destination parent must be trusted/stable. These checks do not create
+a filesystem sandbox against hostile same-user ancestor/mount mutations.
 
-### Names and filesystem policy
+Hashes detect content corruption, not authenticity. Record IDs are opaque, so
+plausible edits to capture metadata or another valid root cannot be authenticated.
+Phase 1 path-loaded manifests likewise do not authenticate provenance. There is
+no encryption, compression or repository migration mechanism.
 
-Names are exact UTF-8 single components, at most 255 bytes. Validation rejects
-empty names, dot/dot-dot, both slash types, control characters (including NUL),
-Windows drive/alternate-stream syntax, reserved punctuation, trailing dots/spaces,
-and Windows device names. Non-UTF-8 filenames will be unsupported. No case folding
-or Unicode normalization is applied: future restoration must detect destination
-collisions and fail without overwriting. Valid names alone do not guarantee a
-name is representable on every destination filesystem.
+## Memory, performance and unsupported features
 
-The Phase 2 capture policy is to reject symlinks (including a symlink root), FIFOs,
-sockets and devices, rather than following or silently omitting them. Milestone A
-models only files and directories. Milestone B now implements descriptor-relative
-traversal and the capture policy described below. Future restore must verify referenced manifest identities and lengths,
-verify nodes recursively, and use fresh destination paths without following
-symlinks. This milestone does not claim completed snapshot safety or crash safety.
+Chunk-data working memory is O(max chunk size), with the FastCDC buffer, current
+owned chunk and potentially duplicate-read buffer live together. Total process
+memory is not constant: manifests grow with chunk count; recursive capture holds
+ancestor name/entry vectors; restore/diff retain ancestor node metadata. Serialized
+size caps bound reads but construction/serialization can allocate before rejecting
+an oversized new node/manifest. Diff holds O(number of reported paths) results and
+sorts them in O(k log k). It must scan a wide changed node even for a one-file edit.
 
-## Manual snapshot creation (Milestone B)
+Known costs include per-chunk allocation/copying, many small object files and sync
+calls for new objects. Verified duplicate chunks/manifests/nodes now avoid temporary
+writes and syncs; a new history record still requires durable publication. Repeated
+captures still read/chunk/hash source bytes and read/verify existing objects even
+when chunk-store growth is zero. Snapshot publication, format versions and public
+per-object durability contracts are unchanged. Directory sync batching, worker pools
+and packed storage are not implemented. Native baseline measurements are in
+[validation](validation.md); [verified reuse results](verified-reuse.md) record the
+approved optimization. Small datasets are not proof of an asymptotic bound or a
+cross-tool speedup.
 
-`rewind snapshot <directory>` opens the current working directory's `.rewind`
-store. `snapshot::create_snapshot` performs a complete directory traversal:
+Names must be UTF-8, <=255 bytes and portable single components: no dot/dot-dot,
+separators, controls/NUL, Windows drive/stream punctuation, reserved device names,
+or trailing dot/space. No normalization/case folding is performed. Paths and
+filesystems may impose stricter limits. Original timestamps, permissions,
+ownership, ACLs, xattrs, sparse extent maps and hard-link relationships are not
+preserved; hard-linked sources restore as independent files. Source symlinks,
+FIFOs, sockets and devices are unsupported. Only macOS has been validated; capture
+is enabled on Unix, restore on macOS/Linux, and other-platform behavior is limited
+and unvalidated. Automatic monitoring, retention, GC, rename detection and FUSE
+are absent.
 
-1. Open the source directory, resolve its canonical absolute UTF-8 display path,
-   and check that its device/inode still match the opened directory handle.
-   Reject a source equal to or inside the canonical store path.
-2. Enumerate immediate child names through the open directory handle and sort
-   them. Inspect each entry without following symlinks. Open regular files and
-   directories relative to that handle with `NOFOLLOW`; directory opens also
-   require `DIRECTORY`. File opens use `NONBLOCK` so replacement with a FIFO does
-   not hang capture; the opened file must still be a regular file.
-3. Exclude directories matching the actual store's device/inode, regardless of
-   their name. Other directories named `.rewind` remain source data. Store parents
-   remain in the tree even if excluding the store leaves them empty.
-4. Pass opened files to the same chunking/storage pipeline used by `store_file`.
-   Save each manifest and use its hash filename and length in the parent entry.
-   Recurse through subdirectories, then persist each parent node bottom-up.
-5. Only after the root node has been stored, create a version 1 snapshot record
-   and publish it with the existing synced no-clobber helper. The record's filename
-   is `<id>.json` inside `.rewind/snapshots/`.
+## Proposed Phase 3 — not implemented
 
-The Phase 1 public file API is preserved. A small crate-private `store_open_file`
-helper allows secure traversal to reuse that pipeline without reopening a path.
-Rust `File` values own their descriptors; ordinary scope exit closes them. Recursive
-calls borrow the open parent with `&File`, keeping it alive until its children are
-done. `rustix` provides safe descriptor-relative filesystem APIs with no unsafe
-Rust in Rewind. Snapshot capture is initially Unix-only (validated on macOS);
-non-Unix returns unsupported. Other Unix platforms have not been validated.
+Agree the next scope before starting. A reasonable sequence is:
 
-Snapshot record fields, in order, are `version`, `id`, `root_hash`, `source_path`,
-`created_unix_seconds`, and `created_nanoseconds`. The timestamp is taken after
-traversal and before publication, not at capture start. The path is display
-metadata, never a restoration destination. IDs are opaque 64-character lowercase
-BLAKE3 digests of an ID-specific domain, a uniquely allocated 32-random-character
-tempfile basename, root hash, and completion timestamp. They are not content
-identities for the record bytes. Thus two captures of identical content share
-root nodes but receive distinct history IDs, without relying on clock precision.
-A collision refuses publication rather than overwriting a record. Listing and
-validated record loading are deferred to Milestone C. Only final `<id>.json`
-records will count as history; `.pending-*` and publication tempfiles are not
-records and may survive a crash.
+1. Define source-mutation detection/retry policy and enforce single-writer locking;
+   broaden abrupt-interruption/commit recovery tests before adding concurrency.
+2. Add a watcher frontend with explicit debounce, overflow/error handling and full
+   rescan fallback, retaining manual capture as the correctness reference.
+3. Track changed paths and rebuild affected Merkle ancestors incrementally; test
+   watcher event loss and compare results against full captures.
+4. Repeat the same measurements before choosing optimizations. Design reader/GC
+   coordination and retention separately before enabling any deletion.
 
-### Consistency and limits
-
-The symlink root itself (including a trailing slash or `/.`) is rejected; ancestor
-symlinks in the user-supplied source path can resolve normally before the root is
-pinned. Inside that root, traversal never follows symlinks: child opens are tied
-to already open directories. Symlinks, dangling links, sockets, FIFOs and devices
-cause failure instead of being omitted. The trusted store still uses Phase 1's
-path-based persistence; hostile mutation of the store is outside the contract.
-Mounts are not excluded and mount points may be traversed. Hard links are captured
-as independent files. Root depth is zero; directories deeper than 256 levels are
-rejected to bound recursion and directory descriptors. Name/node/manifest size
-limits from earlier milestones apply. Directory-name vectors and ancestor entry
-vectors are held during traversal, so metadata memory grows with tree width/depth.
-
-Source files and directories may change during capture. A disappearing entry or
-failed read aborts; other edits may produce a valid graph combining bytes observed
-at different times. Renaming an opened directory does not change its handle.
-These protections prevent symlink redirection but do not supply a filesystem
-transaction or defend against all malicious mount/device changes. Quiesce the
-source for a consistent logical state. Every capture still scans and reads all
-files: deduplicating stored objects is not O(changed files) incremental capture.
-
-All referenced objects are written/synced before record publication, and duplicate
-objects encountered during capture are verified by the existing APIs. This is a
-single-writer publication ordering guarantee, not a tested power-loss guarantee.
-Before record publication, failure may leak unreferenced objects but exposes no
-new history record. During/after publication, a directory sync or nonce-tempfile
-cleanup failure may report an error even though the record already exists. The
-same filesystem/platform durability limits as Phase 1 apply. No snapshot record
-index, cross-object transaction, garbage collection, watchers, or retention policy
-has been added.
+No Phase 3 code was added in Milestone E.

@@ -3,11 +3,11 @@
 pub enum Error {
     #[error("filesystem error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("manifest JSON error: {0}")]
+    #[error("JSON metadata error: {0}")]
     Json(#[from] serde_json::Error),
     #[error("invalid data: {0}")]
     Invalid(String),
-    #[error("chunk integrity check failed: {0}")]
+    #[error("content integrity check failed: {0}")]
     Corrupt(String),
     #[error("chunking failed: {0}")]
     Chunking(String),

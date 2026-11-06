@@ -1,0 +1,800 @@
+{
+  "measured_at_utc": "2026-11-06T17:50:41.137850+00:00",
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "python": "3.13.13",
+    "work_parent": "/private/var/folders/dg/b0tbkj6d1ml97s0zrk53t0rh0000gn/T",
+    "cpu": "Apple M4",
+    "ram_bytes": "17179869184",
+    "df": "Filesystem   512-blocks      Used Available Capacity  Mounted on\n/dev/disk3s5  478724992 309019960 109518424    74%    /System/Volumes/Data",
+    "binary_sha256": "c9d32ace3128c7f29bdbdb1ef09dcb337153b528baed5555001270fbc9f2c529"
+  },
+  "method": {
+    "dataset": "SHAKE256 v1 deterministic payload; 16 distinct 1024-byte docs, one empty file, empty/deep dirs",
+    "elapsed": "perf_counter around /usr/bin/time plus CLI process; includes launch overhead",
+    "cpu": "native time user/system seconds; macOS printed precision 0.01 seconds",
+    "memory": "native time per-command peak RSS normalized to bytes; excludes generator Python process and filesystem cache",
+    "growth": "chunk object count and logical payload bytes; excludes metadata, directory/inode and physical allocation overhead",
+    "cache": "warm/uncontrolled; data generated and SHA-256 validated before timing; no cache drop",
+    "limitations": "small local serial runs; no competing-tool comparison or power-loss tests; sync/cache/system load affect results"
+  },
+  "samples": [
+    {
+      "payload_mib": 8,
+      "trial": 1,
+      "source_files": 18,
+      "source_directories_including_root": 4,
+      "source_bytes": 8404992,
+      "patch_bytes": 4096,
+      "patch_offset": 4194441,
+      "chunks_after_a": {
+        "objects": 126,
+        "payload_bytes": 8404992
+      },
+      "chunks_after_identical": {
+        "objects": 126,
+        "payload_bytes": 8404992
+      },
+      "chunks_after_b": {
+        "objects": 127,
+        "payload_bytes": 8476253
+      },
+      "chunk_growth_objects": 1,
+      "chunk_growth_payload_bytes": 71261,
+      "metrics": {
+        "snapshot_fresh": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 1.7111092919949442,
+          "native_real_seconds": 1.7,
+          "cpu_user_seconds": 0.04,
+          "cpu_system_seconds": 0.18,
+          "peak_rss_bytes": 5603328,
+          "native_time_output": "        1.70 real         0.04 user         0.18 sys\n             5603328  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 528  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1380  voluntary context switches\n                 171  involuntary context switches\n           594195871  instructions retired\n           308390422  cycles elapsed\n             5194352  peak memory footprint\n"
+        },
+        "snapshot_identical": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 0.7387511670240201,
+          "native_real_seconds": 0.73,
+          "cpu_user_seconds": 0.06,
+          "cpu_system_seconds": 0.12,
+          "peak_rss_bytes": 6324224,
+          "native_time_output": "        0.73 real         0.06 user         0.12 sys\n             6324224  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 572  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 603  voluntary context switches\n                 103  involuntary context switches\n           460478376  instructions retired\n           237527962  cycles elapsed\n             5767600  peak memory footprint\n"
+        },
+        "snapshot_changed": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 0.7338523330399767,
+          "native_real_seconds": 0.72,
+          "cpu_user_seconds": 0.06,
+          "cpu_system_seconds": 0.11,
+          "peak_rss_bytes": 5586944,
+          "native_time_output": "        0.72 real         0.06 user         0.11 sys\n             5586944  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 527  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 618  voluntary context switches\n                  62  involuntary context switches\n           441597441  instructions retired\n           227882332  cycles elapsed\n             5046728  peak memory footprint\n"
+        },
+        "diff_changed": {
+          "command": [
+            "rewind",
+            "diff",
+            "06c8aa606b9fc35c60bde8e2e7e73580925504a685d3c00a8bb98a2db7f8a2eb",
+            "059dcc823eda529942c195eab51d6b9a91653291452a85e161be81f15fe78ac0"
+          ],
+          "elapsed_seconds": 0.010866083030123264,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1556480,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1556480  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 281  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   4  involuntary context switches\n            17604205  instructions retired\n             6662914  cycles elapsed\n              868568  peak memory footprint\n"
+        },
+        "diff_identical": {
+          "command": [
+            "rewind",
+            "diff",
+            "06c8aa606b9fc35c60bde8e2e7e73580925504a685d3c00a8bb98a2db7f8a2eb",
+            "436e53839358d82d3aa2c12bb54ab8030ec591f2b111db1916f31d3825b2575e"
+          ],
+          "elapsed_seconds": 0.0073915410321205854,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1523712,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1523712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 279  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            16047164  instructions retired\n             5194935  cycles elapsed\n              835776  peak memory footprint\n"
+        },
+        "restore_b": {
+          "command": [
+            "rewind",
+            "restore-snapshot",
+            "059dcc823eda529942c195eab51d6b9a91653291452a85e161be81f15fe78ac0",
+            "restored-b"
+          ],
+          "elapsed_seconds": 0.11596041597658768,
+          "native_real_seconds": 0.11,
+          "cpu_user_seconds": 0.01,
+          "cpu_system_seconds": 0.01,
+          "peak_rss_bytes": 2703360,
+          "native_time_output": "        0.11 real         0.01 user         0.01 sys\n             2703360  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 351  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  79  voluntary context switches\n                  11  involuntary context switches\n           168539073  instructions retired\n            63204587  cycles elapsed\n             2031880  peak memory footprint\n"
+        }
+      },
+      "verification": "A/B SHA-256 file maps and empty-directory maps match; source unchanged"
+    },
+    {
+      "payload_mib": 8,
+      "trial": 2,
+      "source_files": 18,
+      "source_directories_including_root": 4,
+      "source_bytes": 8404992,
+      "patch_bytes": 4096,
+      "patch_offset": 4194441,
+      "chunks_after_a": {
+        "objects": 126,
+        "payload_bytes": 8404992
+      },
+      "chunks_after_identical": {
+        "objects": 126,
+        "payload_bytes": 8404992
+      },
+      "chunks_after_b": {
+        "objects": 127,
+        "payload_bytes": 8476253
+      },
+      "chunk_growth_objects": 1,
+      "chunk_growth_payload_bytes": 71261,
+      "metrics": {
+        "snapshot_fresh": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 1.6773188329534605,
+          "native_real_seconds": 1.67,
+          "cpu_user_seconds": 0.04,
+          "cpu_system_seconds": 0.18,
+          "peak_rss_bytes": 4685824,
+          "native_time_output": "        1.67 real         0.04 user         0.18 sys\n             4685824  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 472  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1382  voluntary context switches\n                 154  involuntary context switches\n           589810378  instructions retired\n           302835725  cycles elapsed\n             4194808  peak memory footprint\n"
+        },
+        "snapshot_identical": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 0.7260827920399606,
+          "native_real_seconds": 0.71,
+          "cpu_user_seconds": 0.06,
+          "cpu_system_seconds": 0.11,
+          "peak_rss_bytes": 6127616,
+          "native_time_output": "        0.71 real         0.06 user         0.11 sys\n             6127616  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 560  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 600  voluntary context switches\n                  48  involuntary context switches\n           436675730  instructions retired\n           211259705  cycles elapsed\n             5603808  peak memory footprint\n"
+        },
+        "snapshot_changed": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 0.7448483339976519,
+          "native_real_seconds": 0.73,
+          "cpu_user_seconds": 0.06,
+          "cpu_system_seconds": 0.11,
+          "peak_rss_bytes": 5881856,
+          "native_time_output": "        0.73 real         0.06 user         0.11 sys\n             5881856  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 545  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 624  voluntary context switches\n                  83  involuntary context switches\n           438753682  instructions retired\n           222906071  cycles elapsed\n             5341640  peak memory footprint\n"
+        },
+        "diff_changed": {
+          "command": [
+            "rewind",
+            "diff",
+            "be6950558ceb2dab02ca51338d421dbe33c5979f4fa4c56f03c6529e622a5f5d",
+            "463f29828e62d9449380d0b3eb9317e77c84eada75bee98d7c0acbdb78e21aae"
+          ],
+          "elapsed_seconds": 0.010604834009427577,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1556480,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1556480  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 285  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            17670712  instructions retired\n             5702392  cycles elapsed\n              852160  peak memory footprint\n"
+        },
+        "diff_identical": {
+          "command": [
+            "rewind",
+            "diff",
+            "be6950558ceb2dab02ca51338d421dbe33c5979f4fa4c56f03c6529e622a5f5d",
+            "14041059fa0125e7d15b65914672c386535facedc993bd927ad0be6302212d64"
+          ],
+          "elapsed_seconds": 0.007239124970510602,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1523712,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1523712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 279  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            16005439  instructions retired\n             5348945  cycles elapsed\n              835776  peak memory footprint\n"
+        },
+        "restore_b": {
+          "command": [
+            "rewind",
+            "restore-snapshot",
+            "463f29828e62d9449380d0b3eb9317e77c84eada75bee98d7c0acbdb78e21aae",
+            "restored-b"
+          ],
+          "elapsed_seconds": 0.10656370798824355,
+          "native_real_seconds": 0.1,
+          "cpu_user_seconds": 0.01,
+          "cpu_system_seconds": 0.01,
+          "peak_rss_bytes": 2228224,
+          "native_time_output": "        0.10 real         0.01 user         0.01 sys\n             2228224  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 322  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  77  voluntary context switches\n                   8  involuntary context switches\n           168990704  instructions retired\n            59988616  cycles elapsed\n             1523928  peak memory footprint\n"
+        }
+      },
+      "verification": "A/B SHA-256 file maps and empty-directory maps match; source unchanged"
+    },
+    {
+      "payload_mib": 8,
+      "trial": 3,
+      "source_files": 18,
+      "source_directories_including_root": 4,
+      "source_bytes": 8404992,
+      "patch_bytes": 4096,
+      "patch_offset": 4194441,
+      "chunks_after_a": {
+        "objects": 126,
+        "payload_bytes": 8404992
+      },
+      "chunks_after_identical": {
+        "objects": 126,
+        "payload_bytes": 8404992
+      },
+      "chunks_after_b": {
+        "objects": 127,
+        "payload_bytes": 8476253
+      },
+      "chunk_growth_objects": 1,
+      "chunk_growth_payload_bytes": 71261,
+      "metrics": {
+        "snapshot_fresh": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 1.687039458018262,
+          "native_real_seconds": 1.68,
+          "cpu_user_seconds": 0.04,
+          "cpu_system_seconds": 0.18,
+          "peak_rss_bytes": 4734976,
+          "native_time_output": "        1.68 real         0.04 user         0.18 sys\n             4734976  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 475  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1379  voluntary context switches\n                 157  involuntary context switches\n           589083474  instructions retired\n           282439517  cycles elapsed\n             4211144  peak memory footprint\n"
+        },
+        "snapshot_identical": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 0.7324952079798095,
+          "native_real_seconds": 0.72,
+          "cpu_user_seconds": 0.06,
+          "cpu_system_seconds": 0.11,
+          "peak_rss_bytes": 5914624,
+          "native_time_output": "        0.72 real         0.06 user         0.11 sys\n             5914624  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 547  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 604  voluntary context switches\n                  87  involuntary context switches\n           434700043  instructions retired\n           223014048  cycles elapsed\n             5456448  peak memory footprint\n"
+        },
+        "snapshot_changed": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 0.7555074580013752,
+          "native_real_seconds": 0.75,
+          "cpu_user_seconds": 0.06,
+          "cpu_system_seconds": 0.12,
+          "peak_rss_bytes": 6111232,
+          "native_time_output": "        0.75 real         0.06 user         0.12 sys\n             6111232  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 559  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 615  voluntary context switches\n                 128  involuntary context switches\n           440567969  instructions retired\n           238868737  cycles elapsed\n             5620240  peak memory footprint\n"
+        },
+        "diff_changed": {
+          "command": [
+            "rewind",
+            "diff",
+            "68d2230e207e8af7c725ac792462abb5cb21d34209b7f813bcd88700405c5bd6",
+            "8355e000e804cc21d0cbcdb65b8eeb8073069bc500013a25e6c0537f6896feab"
+          ],
+          "elapsed_seconds": 0.011171042046044022,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1556480,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1556480  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 281  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   9  involuntary context switches\n            17651320  instructions retired\n             5741237  cycles elapsed\n              852160  peak memory footprint\n"
+        },
+        "diff_identical": {
+          "command": [
+            "rewind",
+            "diff",
+            "68d2230e207e8af7c725ac792462abb5cb21d34209b7f813bcd88700405c5bd6",
+            "ace02bed04a4f3db2fa0e07861e3fb75e515665fde2f57d62f1828513ff6affb"
+          ],
+          "elapsed_seconds": 0.007479624997358769,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1523712,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1523712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 279  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            16008971  instructions retired\n             5550311  cycles elapsed\n              835776  peak memory footprint\n"
+        },
+        "restore_b": {
+          "command": [
+            "rewind",
+            "restore-snapshot",
+            "8355e000e804cc21d0cbcdb65b8eeb8073069bc500013a25e6c0537f6896feab",
+            "restored-b"
+          ],
+          "elapsed_seconds": 0.11482775001786649,
+          "native_real_seconds": 0.11,
+          "cpu_user_seconds": 0.01,
+          "cpu_system_seconds": 0.01,
+          "peak_rss_bytes": 2277376,
+          "native_time_output": "        0.11 real         0.01 user         0.01 sys\n             2277376  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 325  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  77  voluntary context switches\n                  14  involuntary context switches\n           168324946  instructions retired\n            63653003  cycles elapsed\n             1589488  peak memory footprint\n"
+        }
+      },
+      "verification": "A/B SHA-256 file maps and empty-directory maps match; source unchanged"
+    },
+    {
+      "payload_mib": 32,
+      "trial": 1,
+      "source_files": 18,
+      "source_directories_including_root": 4,
+      "source_bytes": 33570816,
+      "patch_bytes": 4096,
+      "patch_offset": 16777353,
+      "chunks_after_a": {
+        "objects": 447,
+        "payload_bytes": 33570816
+      },
+      "chunks_after_identical": {
+        "objects": 447,
+        "payload_bytes": 33570816
+      },
+      "chunks_after_b": {
+        "objects": 448,
+        "payload_bytes": 33686768
+      },
+      "chunk_growth_objects": 1,
+      "chunk_growth_payload_bytes": 115952,
+      "metrics": {
+        "snapshot_fresh": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 4.889889332989696,
+          "native_real_seconds": 4.88,
+          "cpu_user_seconds": 0.19,
+          "cpu_system_seconds": 0.57,
+          "peak_rss_bytes": 6012928,
+          "native_time_output": "        4.88 real         0.19 user         0.57 sys\n             6012928  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 553  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                4023  voluntary context switches\n                 377  involuntary context switches\n          1836679280  instructions retired\n           902364625  cycles elapsed\n             5505504  peak memory footprint\n"
+        },
+        "snapshot_identical": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 2.27841404202627,
+          "native_real_seconds": 2.27,
+          "cpu_user_seconds": 0.25,
+          "cpu_system_seconds": 0.36,
+          "peak_rss_bytes": 7028736,
+          "native_time_output": "        2.27 real         0.25 user         0.36 sys\n             7028736  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 615  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1891  voluntary context switches\n                 126  involuntary context switches\n          1496196851  instructions retired\n           709092211  cycles elapsed\n             6488520  peak memory footprint\n"
+        },
+        "snapshot_changed": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 2.317700166022405,
+          "native_real_seconds": 2.31,
+          "cpu_user_seconds": 0.23,
+          "cpu_system_seconds": 0.35,
+          "peak_rss_bytes": 7454720,
+          "native_time_output": "        2.31 real         0.23 user         0.35 sys\n             7454720  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 641  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1907  voluntary context switches\n                 178  involuntary context switches\n          1499673748  instructions retired\n           725582005  cycles elapsed\n             6930912  peak memory footprint\n"
+        },
+        "diff_changed": {
+          "command": [
+            "rewind",
+            "diff",
+            "1dc377c7424e9c27625026b2d22c9253ea443d5047c800470b68f20d698a7c52",
+            "d6094cfb81a1229039d6c3edd4ab43c7eab95fa8a3d77515b67b820f73b4308b"
+          ],
+          "elapsed_seconds": 0.007809625007212162,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1687552,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1687552  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 289  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            19736726  instructions retired\n             6518814  cycles elapsed\n             1016048  peak memory footprint\n"
+        },
+        "diff_identical": {
+          "command": [
+            "rewind",
+            "diff",
+            "1dc377c7424e9c27625026b2d22c9253ea443d5047c800470b68f20d698a7c52",
+            "a8e879127db3072828096c58e2623304b4021b588326057e028a24fb9fbd1fa1"
+          ],
+          "elapsed_seconds": 0.006143708946183324,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1523712,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1523712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 279  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            16231086  instructions retired\n             5905655  cycles elapsed\n              835776  peak memory footprint\n"
+        },
+        "restore_b": {
+          "command": [
+            "rewind",
+            "restore-snapshot",
+            "d6094cfb81a1229039d6c3edd4ab43c7eab95fa8a3d77515b67b820f73b4308b",
+            "restored-b"
+          ],
+          "elapsed_seconds": 0.1527961670071818,
+          "native_real_seconds": 0.15,
+          "cpu_user_seconds": 0.04,
+          "cpu_system_seconds": 0.02,
+          "peak_rss_bytes": 2965504,
+          "native_time_output": "        0.15 real         0.04 user         0.02 sys\n             2965504  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 367  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  89  voluntary context switches\n                   9  involuntary context switches\n           532846861  instructions retired\n           190319774  cycles elapsed\n             2294024  peak memory footprint\n"
+        }
+      },
+      "verification": "A/B SHA-256 file maps and empty-directory maps match; source unchanged"
+    },
+    {
+      "payload_mib": 32,
+      "trial": 2,
+      "source_files": 18,
+      "source_directories_including_root": 4,
+      "source_bytes": 33570816,
+      "patch_bytes": 4096,
+      "patch_offset": 16777353,
+      "chunks_after_a": {
+        "objects": 447,
+        "payload_bytes": 33570816
+      },
+      "chunks_after_identical": {
+        "objects": 447,
+        "payload_bytes": 33570816
+      },
+      "chunks_after_b": {
+        "objects": 448,
+        "payload_bytes": 33686768
+      },
+      "chunk_growth_objects": 1,
+      "chunk_growth_payload_bytes": 115952,
+      "metrics": {
+        "snapshot_fresh": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 4.938520708994474,
+          "native_real_seconds": 4.93,
+          "cpu_user_seconds": 0.19,
+          "cpu_system_seconds": 0.58,
+          "peak_rss_bytes": 6602752,
+          "native_time_output": "        4.93 real         0.19 user         0.58 sys\n             6602752  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 589  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                3989  voluntary context switches\n                 573  involuntary context switches\n          1837754271  instructions retired\n           936065487  cycles elapsed\n             6226592  peak memory footprint\n"
+        },
+        "snapshot_identical": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 2.3190462500206195,
+          "native_real_seconds": 2.31,
+          "cpu_user_seconds": 0.24,
+          "cpu_system_seconds": 0.36,
+          "peak_rss_bytes": 7618560,
+          "native_time_output": "        2.31 real         0.24 user         0.36 sys\n             7618560  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 651  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1891  voluntary context switches\n                 145  involuntary context switches\n          1504167400  instructions retired\n           720999516  cycles elapsed\n             7193200  peak memory footprint\n"
+        },
+        "snapshot_changed": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 2.300267583981622,
+          "native_real_seconds": 2.29,
+          "cpu_user_seconds": 0.23,
+          "cpu_system_seconds": 0.34,
+          "peak_rss_bytes": 8388608,
+          "native_time_output": "        2.29 real         0.23 user         0.34 sys\n             8388608  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 698  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1909  voluntary context switches\n                 149  involuntary context switches\n          1503036987  instructions retired\n           704076451  cycles elapsed\n             7897616  peak memory footprint\n"
+        },
+        "diff_changed": {
+          "command": [
+            "rewind",
+            "diff",
+            "0844a21156567221645f0c3ef245564e2a476776a6405c508544a5ecbf25360f",
+            "4c0c71200797c8625538376134d28984911b44018d0eb56556bd26d8be7a7933"
+          ],
+          "elapsed_seconds": 0.008120874990709126,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1687552,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1687552  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 289  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            19763345  instructions retired\n             6697266  cycles elapsed\n             1016048  peak memory footprint\n"
+        },
+        "diff_identical": {
+          "command": [
+            "rewind",
+            "diff",
+            "0844a21156567221645f0c3ef245564e2a476776a6405c508544a5ecbf25360f",
+            "90e63b5971cecacd1d88b624dfc81d1bceba0703c3f8c204ef598b2e3356b768"
+          ],
+          "elapsed_seconds": 0.006037625018507242,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1523712,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1523712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 279  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            16008054  instructions retired\n             5599619  cycles elapsed\n              852184  peak memory footprint\n"
+        },
+        "restore_b": {
+          "command": [
+            "rewind",
+            "restore-snapshot",
+            "4c0c71200797c8625538376134d28984911b44018d0eb56556bd26d8be7a7933",
+            "restored-b"
+          ],
+          "elapsed_seconds": 0.1408349999692291,
+          "native_real_seconds": 0.13,
+          "cpu_user_seconds": 0.04,
+          "cpu_system_seconds": 0.02,
+          "peak_rss_bytes": 2523136,
+          "native_time_output": "        0.13 real         0.04 user         0.02 sys\n             2523136  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 340  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  78  voluntary context switches\n                  17  involuntary context switches\n           532505320  instructions retired\n           189533486  cycles elapsed\n             1835248  peak memory footprint\n"
+        }
+      },
+      "verification": "A/B SHA-256 file maps and empty-directory maps match; source unchanged"
+    },
+    {
+      "payload_mib": 32,
+      "trial": 3,
+      "source_files": 18,
+      "source_directories_including_root": 4,
+      "source_bytes": 33570816,
+      "patch_bytes": 4096,
+      "patch_offset": 16777353,
+      "chunks_after_a": {
+        "objects": 447,
+        "payload_bytes": 33570816
+      },
+      "chunks_after_identical": {
+        "objects": 447,
+        "payload_bytes": 33570816
+      },
+      "chunks_after_b": {
+        "objects": 448,
+        "payload_bytes": 33686768
+      },
+      "chunk_growth_objects": 1,
+      "chunk_growth_payload_bytes": 115952,
+      "metrics": {
+        "snapshot_fresh": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 4.962947082996834,
+          "native_real_seconds": 4.95,
+          "cpu_user_seconds": 0.18,
+          "cpu_system_seconds": 0.59,
+          "peak_rss_bytes": 5767168,
+          "native_time_output": "        4.95 real         0.18 user         0.59 sys\n             5767168  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 538  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                3972  voluntary context switches\n                 639  involuntary context switches\n          1838248724  instructions retired\n           945736106  cycles elapsed\n             5243336  peak memory footprint\n"
+        },
+        "snapshot_identical": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 2.302989708026871,
+          "native_real_seconds": 2.29,
+          "cpu_user_seconds": 0.25,
+          "cpu_system_seconds": 0.36,
+          "peak_rss_bytes": 7192576,
+          "native_time_output": "        2.29 real         0.25 user         0.36 sys\n             7192576  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 625  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1894  voluntary context switches\n                 153  involuntary context switches\n          1494252367  instructions retired\n           710618280  cycles elapsed\n             6668768  peak memory footprint\n"
+        },
+        "snapshot_changed": {
+          "command": [
+            "rewind",
+            "snapshot",
+            "source"
+          ],
+          "elapsed_seconds": 2.277033250022214,
+          "native_real_seconds": 2.27,
+          "cpu_user_seconds": 0.23,
+          "cpu_system_seconds": 0.33,
+          "peak_rss_bytes": 7815168,
+          "native_time_output": "        2.27 real         0.23 user         0.33 sys\n             7815168  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 663  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                1898  voluntary context switches\n                 156  involuntary context switches\n          1494007014  instructions retired\n           690307701  cycles elapsed\n             7340584  peak memory footprint\n"
+        },
+        "diff_changed": {
+          "command": [
+            "rewind",
+            "diff",
+            "c183d3fb2e54f7afa79c0678c95a11fd3a4faf658cca329467b53d1162c584d1",
+            "c6c097c0bec125f80e6678fead06c7cddd598da08ac1b99f35a8a48addfb8000"
+          ],
+          "elapsed_seconds": 0.008664375054650009,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1687552,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1687552  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 289  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            19692706  instructions retired\n             6597218  cycles elapsed\n              999640  peak memory footprint\n"
+        },
+        "diff_identical": {
+          "command": [
+            "rewind",
+            "diff",
+            "c183d3fb2e54f7afa79c0678c95a11fd3a4faf658cca329467b53d1162c584d1",
+            "ae89837c32123182d69c91d95830d60d3410912001a2cc040e1e83da9e3756c1"
+          ],
+          "elapsed_seconds": 0.00610237498767674,
+          "native_real_seconds": 0.0,
+          "cpu_user_seconds": 0.0,
+          "cpu_system_seconds": 0.0,
+          "peak_rss_bytes": 1523712,
+          "native_time_output": "        0.00 real         0.00 user         0.00 sys\n             1523712  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 279  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   0  voluntary context switches\n                   3  involuntary context switches\n            16014882  instructions retired\n             5521588  cycles elapsed\n              835776  peak memory footprint\n"
+        },
+        "restore_b": {
+          "command": [
+            "rewind",
+            "restore-snapshot",
+            "c6c097c0bec125f80e6678fead06c7cddd598da08ac1b99f35a8a48addfb8000",
+            "restored-b"
+          ],
+          "elapsed_seconds": 0.14051533298334107,
+          "native_real_seconds": 0.13,
+          "cpu_user_seconds": 0.04,
+          "cpu_system_seconds": 0.02,
+          "peak_rss_bytes": 2473984,
+          "native_time_output": "        0.13 real         0.04 user         0.02 sys\n             2473984  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 337  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  77  voluntary context switches\n                  19  involuntary context switches\n           532735798  instructions retired\n           189675844  cycles elapsed\n             1769688  peak memory footprint\n"
+        }
+      },
+      "verification": "A/B SHA-256 file maps and empty-directory maps match; source unchanged"
+    }
+  ],
+  "summary": [
+    {
+      "payload_mib": 8,
+      "operation": "snapshot_fresh",
+      "elapsed_median_seconds": 1.687039458018262,
+      "elapsed_min_seconds": 1.6773188329534605,
+      "elapsed_max_seconds": 1.7111092919949442,
+      "cpu_user_median_seconds": 0.04,
+      "cpu_system_median_seconds": 0.18,
+      "peak_rss_median_bytes": 4734976,
+      "peak_rss_max_bytes": 5603328
+    },
+    {
+      "payload_mib": 8,
+      "operation": "snapshot_identical",
+      "elapsed_median_seconds": 0.7324952079798095,
+      "elapsed_min_seconds": 0.7260827920399606,
+      "elapsed_max_seconds": 0.7387511670240201,
+      "cpu_user_median_seconds": 0.06,
+      "cpu_system_median_seconds": 0.11,
+      "peak_rss_median_bytes": 6127616,
+      "peak_rss_max_bytes": 6324224
+    },
+    {
+      "payload_mib": 8,
+      "operation": "snapshot_changed",
+      "elapsed_median_seconds": 0.7448483339976519,
+      "elapsed_min_seconds": 0.7338523330399767,
+      "elapsed_max_seconds": 0.7555074580013752,
+      "cpu_user_median_seconds": 0.06,
+      "cpu_system_median_seconds": 0.11,
+      "peak_rss_median_bytes": 5881856,
+      "peak_rss_max_bytes": 6111232
+    },
+    {
+      "payload_mib": 8,
+      "operation": "diff_changed",
+      "elapsed_median_seconds": 0.010866083030123264,
+      "elapsed_min_seconds": 0.010604834009427577,
+      "elapsed_max_seconds": 0.011171042046044022,
+      "cpu_user_median_seconds": 0.0,
+      "cpu_system_median_seconds": 0.0,
+      "peak_rss_median_bytes": 1556480,
+      "peak_rss_max_bytes": 1556480
+    },
+    {
+      "payload_mib": 8,
+      "operation": "diff_identical",
+      "elapsed_median_seconds": 0.0073915410321205854,
+      "elapsed_min_seconds": 0.007239124970510602,
+      "elapsed_max_seconds": 0.007479624997358769,
+      "cpu_user_median_seconds": 0.0,
+      "cpu_system_median_seconds": 0.0,
+      "peak_rss_median_bytes": 1523712,
+      "peak_rss_max_bytes": 1523712
+    },
+    {
+      "payload_mib": 8,
+      "operation": "restore_b",
+      "elapsed_median_seconds": 0.11482775001786649,
+      "elapsed_min_seconds": 0.10656370798824355,
+      "elapsed_max_seconds": 0.11596041597658768,
+      "cpu_user_median_seconds": 0.01,
+      "cpu_system_median_seconds": 0.01,
+      "peak_rss_median_bytes": 2277376,
+      "peak_rss_max_bytes": 2703360
+    },
+    {
+      "payload_mib": 32,
+      "operation": "snapshot_fresh",
+      "elapsed_median_seconds": 4.938520708994474,
+      "elapsed_min_seconds": 4.889889332989696,
+      "elapsed_max_seconds": 4.962947082996834,
+      "cpu_user_median_seconds": 0.19,
+      "cpu_system_median_seconds": 0.58,
+      "peak_rss_median_bytes": 6012928,
+      "peak_rss_max_bytes": 6602752
+    },
+    {
+      "payload_mib": 32,
+      "operation": "snapshot_identical",
+      "elapsed_median_seconds": 2.302989708026871,
+      "elapsed_min_seconds": 2.27841404202627,
+      "elapsed_max_seconds": 2.3190462500206195,
+      "cpu_user_median_seconds": 0.25,
+      "cpu_system_median_seconds": 0.36,
+      "peak_rss_median_bytes": 7192576,
+      "peak_rss_max_bytes": 7618560
+    },
+    {
+      "payload_mib": 32,
+      "operation": "snapshot_changed",
+      "elapsed_median_seconds": 2.300267583981622,
+      "elapsed_min_seconds": 2.277033250022214,
+      "elapsed_max_seconds": 2.317700166022405,
+      "cpu_user_median_seconds": 0.23,
+      "cpu_system_median_seconds": 0.34,
+      "peak_rss_median_bytes": 7815168,
+      "peak_rss_max_bytes": 8388608
+    },
+    {
+      "payload_mib": 32,
+      "operation": "diff_changed",
+      "elapsed_median_seconds": 0.008120874990709126,
+      "elapsed_min_seconds": 0.007809625007212162,
+      "elapsed_max_seconds": 0.008664375054650009,
+      "cpu_user_median_seconds": 0.0,
+      "cpu_system_median_seconds": 0.0,
+      "peak_rss_median_bytes": 1687552,
+      "peak_rss_max_bytes": 1687552
+    },
+    {
+      "payload_mib": 32,
+      "operation": "diff_identical",
+      "elapsed_median_seconds": 0.00610237498767674,
+      "elapsed_min_seconds": 0.006037625018507242,
+      "elapsed_max_seconds": 0.006143708946183324,
+      "cpu_user_median_seconds": 0.0,
+      "cpu_system_median_seconds": 0.0,
+      "peak_rss_median_bytes": 1523712,
+      "peak_rss_max_bytes": 1523712
+    },
+    {
+      "payload_mib": 32,
+      "operation": "restore_b",
+      "elapsed_median_seconds": 0.1408349999692291,
+      "elapsed_min_seconds": 0.14051533298334107,
+      "elapsed_max_seconds": 0.1527961670071818,
+      "cpu_user_median_seconds": 0.04,
+      "cpu_system_median_seconds": 0.02,
+      "peak_rss_median_bytes": 2523136,
+      "peak_rss_max_bytes": 2965504
+    }
+  ]
+}

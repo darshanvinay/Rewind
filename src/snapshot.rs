@@ -1,6 +1,20 @@
-//! Manual directory capture. Snapshot records are published after the object graph.
+//! Manual captures and validated history records, published after the object graph.
 use crate::{ChunkStore, Error, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::fs;
+
+const MAX_RECORD_BYTES: usize = 64 * 1024;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SnapshotWire {
+    version: u32,
+    id: String,
+    root_hash: String,
+    source_path: String,
+    created_unix_seconds: u64,
+    created_nanoseconds: u32,
+}
 
 /// A committed capture. Source path and timestamp are history metadata, not part
 /// of the immutable directory root. Fields cannot be changed through this API.
@@ -15,6 +29,43 @@ pub struct SnapshotRecord {
 }
 
 impl SnapshotRecord {
+    /// Load one bounded record and validate it against its requested filename ID.
+    /// This validates metadata only; restoration verifies the referenced graph.
+    pub fn load(store: &ChunkStore, id: &str) -> Result<Self> {
+        crate::hashing::validate_hash(id)?;
+        let path = store.root().join("snapshots").join(format!("{id}.json"));
+        let bytes = crate::storage::read_regular_file(&path, MAX_RECORD_BYTES as u64)?;
+        let raw: SnapshotWire = serde_json::from_slice(&bytes)?;
+        crate::hashing::validate_hash(&raw.id)?;
+        crate::hashing::validate_hash(&raw.root_hash)?;
+        if raw.version != 1 || raw.id != id || raw.created_nanoseconds >= 1_000_000_000 {
+            return Err(Error::Invalid(format!(
+                "invalid or unsupported snapshot record {id}"
+            )));
+        }
+        // Version 1 captures originate on Unix. The path is display metadata,
+        // never an instruction to open or create a source/destination directory.
+        if !raw.source_path.starts_with('/')
+            || raw.source_path.contains('\0')
+            || raw
+                .source_path
+                .split('/')
+                .any(|part| part == "." || part == "..")
+        {
+            return Err(Error::Invalid(
+                "snapshot source path must be absolute without dot components or NUL".into(),
+            ));
+        }
+        Ok(Self {
+            version: raw.version,
+            id: raw.id,
+            root_hash: raw.root_hash,
+            source_path: raw.source_path,
+            created_unix_seconds: raw.created_unix_seconds,
+            created_nanoseconds: raw.created_nanoseconds,
+        })
+    }
+
     /// Opaque lowercase hexadecimal ID, distinct even for identical tree roots.
     pub fn id(&self) -> &str {
         &self.id
@@ -23,7 +74,7 @@ impl SnapshotRecord {
     pub fn root_hash(&self) -> &str {
         &self.root_hash
     }
-    /// Canonical absolute UTF-8 source path, for display only.
+    /// Recorded canonical absolute UTF-8 source path, never a restore destination.
     pub fn source_path(&self) -> &str {
         &self.source_path
     }
@@ -31,6 +82,39 @@ impl SnapshotRecord {
     pub fn created_at(&self) -> (u64, u32) {
         (self.created_unix_seconds, self.created_nanoseconds)
     }
+}
+
+/// List validated committed records oldest first (timestamp, then ID).
+/// An initialized store without a snapshots directory has an empty history.
+/// Temporary/non-record filenames are ignored; invalid recognized records fail.
+/// This is not a full content-integrity scan.
+pub fn list_snapshots(store: &ChunkStore) -> Result<Vec<SnapshotRecord>> {
+    let directory = store.root().join("snapshots");
+    match fs::symlink_metadata(&directory) {
+        Ok(metadata) if metadata.is_dir() => (),
+        Ok(_) => {
+            return Err(Error::Invalid(
+                "snapshot history is not a regular directory".into(),
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    }
+    let entries = fs::read_dir(directory)?;
+    let mut records = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(id) = name.to_str().and_then(|name| name.strip_suffix(".json")) else {
+            continue;
+        };
+        if crate::hashing::validate_hash(id).is_err() {
+            continue;
+        }
+        records.push(SnapshotRecord::load(store, id)?);
+    }
+    records.sort_by(|a, b| (a.created_at(), a.id()).cmp(&(b.created_at(), b.id())));
+    Ok(records)
 }
 
 /// Capture regular files and directories with a full traversal. Reject symlinks,
@@ -155,6 +239,9 @@ mod unix {
             created_nanoseconds: timestamp.subsec_nanos(),
         };
         let bytes = serde_json::to_vec(&record)?;
+        if bytes.len() > MAX_RECORD_BYTES {
+            return Err(Error::Invalid("snapshot record exceeds 64 KiB".into()));
+        }
         if !publish(&records.join(format!("{}.json", record.id)), &bytes)? {
             return Err(Error::Invalid(
                 "snapshot ID collision; retry capture".into(),

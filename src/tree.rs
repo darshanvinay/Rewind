@@ -1,10 +1,10 @@
 //! Immutable directory recipes. This module does not traverse the filesystem.
 use crate::{
     Error, Result, hashing,
-    storage::{ChunkStore, publish},
+    storage::{ChunkStore, publish, publish_if_missing, read_regular_file},
 };
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Read, path::PathBuf};
+use std::path::PathBuf;
 
 const MAX_NODE_BYTES: usize = 16 * 1024 * 1024;
 
@@ -154,24 +154,22 @@ impl DirectoryNode {
     }
 
     /// Publish a node without replacing an existing object. References are not
-    /// traversed here; future snapshot creation must persist children first.
+    /// traversed here; callers must persist children before publishing a snapshot.
     pub fn save(&self, store: &ChunkStore) -> Result<String> {
         let bytes = self.canonical_bytes()?;
         let hash = hashing::hash(&bytes);
         let path = node_path(store, &hash)?;
-        if !publish(&path, &bytes)? {
-            Self::load(store, &hash)?;
-        }
+        publish_if_missing(
+            || Self::load(store, &hash).map(|_| ()),
+            || publish(&path, &bytes),
+        )?;
         Ok(hash)
     }
 
     /// Read a bounded object, verify its identity, then validate the node schema.
     /// Does not verify the existence or integrity of referenced descendants.
     pub fn load(store: &ChunkStore, hash: &str) -> Result<Self> {
-        let mut bytes = Vec::new();
-        File::open(node_path(store, hash)?)?
-            .take(MAX_NODE_BYTES as u64 + 1)
-            .read_to_end(&mut bytes)?;
+        let bytes = read_regular_file(&node_path(store, hash)?, MAX_NODE_BYTES as u64)?;
         if bytes.len() > MAX_NODE_BYTES || hashing::hash(&bytes) != hash {
             return Err(Error::Corrupt(format!("directory node {hash}")));
         }

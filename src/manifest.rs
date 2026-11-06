@@ -3,12 +3,12 @@ use crate::{
     Error, Result,
     chunking::ChunkSizes,
     hashing,
-    storage::{ChunkStore, publish, sync_dir},
+    storage::{ChunkStore, publish, publish_if_missing, read_regular_file, sync_dir},
 };
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
-    io::{Read, Write},
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -59,15 +59,22 @@ impl FileManifest {
     }
     /// Read at most 64 MiB of JSON and validate it.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
-        // Bound metadata allocation even for untrusted input.
-        let mut bytes = Vec::new();
-        File::open(path)?
-            .take(64 * 1024 * 1024 + 1)
-            .read_to_end(&mut bytes)?;
-        if bytes.len() > 64 * 1024 * 1024 {
-            return Err(Error::Invalid("manifest exceeds 64 MiB".into()));
+        Self::decode(&read_manifest_bytes(path)?)
+    }
+
+    /// Load a store manifest by its BLAKE3 identity, verifying exactly the bytes
+    /// that are parsed. Snapshot references must use this instead of path loading.
+    pub fn load_by_hash(store: &ChunkStore, id: &str) -> Result<Self> {
+        hashing::validate_hash(id)?;
+        let bytes = read_manifest_bytes(store.root().join("manifests").join(format!("{id}.json")))?;
+        if hashing::hash(&bytes) != id {
+            return Err(Error::Corrupt(format!("file manifest {id}")));
         }
-        let manifest: Self = serde_json::from_slice(&bytes)?;
+        Self::decode(&bytes)
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self> {
+        let manifest: Self = serde_json::from_slice(bytes)?;
         manifest.validate()?;
         Ok(manifest)
     }
@@ -82,11 +89,23 @@ impl FileManifest {
             .root()
             .join("manifests")
             .join(format!("{}.json", hashing::hash(&bytes)));
-        if !publish(&path, &bytes)? && std::fs::read(&path)? != bytes {
-            return Err(Error::Corrupt(path.display().to_string()));
-        }
+        publish_if_missing(
+            || {
+                // Exact equality with these already validated, hashed bytes is
+                // stronger than trusting a filename or parsing JSON alone.
+                if read_manifest_bytes(&path)? != bytes {
+                    return Err(Error::Corrupt(path.display().to_string()));
+                }
+                Ok(())
+            },
+            || publish(&path, &bytes),
+        )?;
         Ok(path)
     }
+}
+
+fn read_manifest_bytes(path: impl AsRef<Path>) -> Result<Vec<u8>> {
+    read_regular_file(path.as_ref(), 64 * 1024 * 1024)
 }
 
 /// Stream a regular file into the store and return its recipe.

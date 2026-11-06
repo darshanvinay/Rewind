@@ -236,7 +236,7 @@ fn connects_to_existing_file_manifests() {
 proptest! {
     #![proptest_config(ProptestConfig { cases: 32, failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::Direct("tests/tree_tests.proptest-regressions"))), ..ProptestConfig::default() })]
     #[test]
-    fn permutation_does_not_change_hash(names in prop::collection::btree_set("[a-z]{1,12}", 0..40)) {
+    fn permutation_does_not_change_hash(names in prop::collection::btree_set("entry-[a-z]{1,12}", 0..40)) {
         let entries: Vec<_> = names.iter().map(|name| file(name, name.as_bytes())).collect();
         let first = DirectoryNode::new(entries.clone()).unwrap();
         let second = DirectoryNode::new(entries.into_iter().rev().collect()).unwrap();
