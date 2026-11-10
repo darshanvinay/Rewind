@@ -1,4 +1,4 @@
-//! Immutable, single-writer storage with no-clobber publication.
+//! Immutable storage with coordinated writers and no-clobber publication.
 use crate::{Error, Result, hashing};
 use std::{
     fs::{self, File},
@@ -6,14 +6,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Local immutable objects. Callers must serialize writers and exclude GC.
+/// Local immutable objects. Writers coordinate through an advisory OS lock.
+/// The store must remain trusted; external mutation and concurrent GC are unsupported.
 #[derive(Debug)]
 pub struct ChunkStore {
     root: PathBuf,
+    pub(crate) batch: Option<crate::transaction::Batch>,
 }
 
 /// Sync directory entries on Unix. Other platforms lack a portable equivalent.
 pub(crate) fn sync_dir(path: &Path) -> Result<()> {
+    crate::transaction::checkpoint("directory_sync")?;
     #[cfg(unix)]
     File::open(path)?.sync_all()?;
     #[cfg(not(unix))]
@@ -27,7 +30,10 @@ pub(crate) fn ensure_dir(path: &Path) -> Result<()> {
 
 // Keep directory-sync failures observable and testable without simulating a
 // power loss. The production call always uses the real directory sync above.
-fn ensure_dir_with(path: &Path, sync: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
+pub(crate) fn ensure_dir_with(
+    path: &Path,
+    sync: &mut impl FnMut(&Path) -> Result<()>,
+) -> Result<()> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.is_dir() => return Ok(()),
         Ok(_) => {
@@ -126,18 +132,29 @@ fn publish_with(
     bytes: &[u8],
     before_publish: impl FnOnce() -> Result<()>,
 ) -> Result<bool> {
+    publish_using(path, bytes, ensure_dir, sync_dir, before_publish)
+}
+
+pub(crate) fn publish_using(
+    path: &Path,
+    bytes: &[u8],
+    mut ensure: impl FnMut(&Path) -> Result<()>,
+    mut sync: impl FnMut(&Path) -> Result<()>,
+    before_publish: impl FnOnce() -> Result<()>,
+) -> Result<bool> {
     let parent = path
         .parent()
         .ok_or_else(|| Error::Invalid("missing parent directory".into()))?;
-    ensure_dir(parent)?;
+    ensure(parent)?;
     let mut temp = tempfile::NamedTempFile::new_in(parent)?;
     temp.write_all(bytes)?;
     temp.flush()?;
+    crate::transaction::checkpoint("file_sync")?;
     temp.as_file().sync_all()?;
     before_publish()?;
     match temp.persist_noclobber(path) {
         Ok(_) => {
-            sync_dir(parent)?;
+            sync(parent)?;
             Ok(true)
         }
         Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
@@ -149,9 +166,17 @@ impl ChunkStore {
     /// Create the store directories, or reuse an existing store.
     pub fn init(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        ensure_dir(&root.join("chunks"))?;
-        ensure_dir(&root.join("manifests"))?;
-        Ok(Self { root })
+        ensure_dir(&root)?;
+        let store = Self { root, batch: None };
+        let writer = store.writer()?;
+        ensure_dir(&store.root.join("chunks"))?;
+        ensure_dir(&store.root.join("manifests"))?;
+        // Repair surviving ancestor links from an interrupted initialization.
+        for ancestor in fs::canonicalize(&store.root)?.ancestors() {
+            sync_dir(ancestor)?;
+        }
+        writer.finish()?;
+        Ok(store)
     }
     /// Open an initialized store without creating directories.
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
@@ -161,7 +186,7 @@ impl ChunkStore {
                 "store is not initialized; run rewind init".into(),
             ));
         }
-        Ok(Self { root })
+        Ok(Self { root, batch: None })
     }
     /// Root containing the chunks and manifests directories.
     pub fn root(&self) -> &Path {
@@ -177,9 +202,14 @@ impl ChunkStore {
         if data.is_empty() || data.len() > 16 * 1024 * 1024 {
             return Err(Error::Invalid("chunk must contain 1 byte to 16 MiB".into()));
         }
+        let writer = self.writer()?;
         let id = hashing::hash(data);
         let path = self.chunk_path(&id)?;
-        publish_if_missing(|| self.get(&id).map(|_| ()), || publish(&path, data))?;
+        publish_if_missing(
+            || self.get(&id).map(|_| ()),
+            || self.publish_object(&path, data),
+        )?;
+        writer.finish()?;
         Ok(id)
     }
     /// Read a bounded object and verify its digest before returning bytes.

@@ -20,6 +20,7 @@ regular file -> FastCDC -> BLAKE3 chunks -> ordered file manifest
 | `chunking` | Validate configurable min/target/max chunk sizes. |
 | `hashing` | Full BLAKE3 digest and canonical lowercase 64-hex identity validation. |
 | `storage` | Bounded regular-object reads, durable directories, no-clobber publication, chunk storage. |
+| `transaction` | Advisory writer lock, pending-marker recovery and capture directory barriers. |
 | `manifest` | File recipes, ingestion, identity loading, reconstruction, file verify/restore. |
 | `tree` | Sorted directory nodes, canonical bytes, validation and content-addressed persistence. |
 | `snapshot` | Descriptor-relative capture and validated history loading/listing. |
@@ -56,6 +57,8 @@ marker or migration system yet.
 
 ```text
 .rewind/
+  writer.lock                     permanent advisory lock inode
+  capture.pending                 present during a write / after interruption
   chunks/ab/<remaining 62 hex>
   manifests/<64 hex>.json
   trees/ab/<remaining 62 hex>
@@ -113,7 +116,8 @@ and persists the reachable graph bottom-up before committing history.
    `/` or `/.`, canonicalize its path and check that it matches the opened device/inode.
    Ancestor symlinks in the user-supplied path can resolve normally. Reject a source
    equal to or inside the store.
-2. Read/sort child names from open directory handles. Inspect children with
+2. Acquire the exclusive OS writer lock, recover any interrupted write, and durably
+   publish `capture.pending` before changing object namespaces. Read/sort child names from open directory handles. Inspect children with
    non-following `statat`. Open children relative to those handles, with NOFOLLOW;
    directory opens require DIRECTORY and regular-file opens also use NONBLOCK.
    The opened file must still be regular. Reject symlinks, dangling links and
@@ -123,8 +127,10 @@ and persists the reachable graph bottom-up before committing history.
 4. Stream file bytes through Phase 1 and save manifests. Recurse into directories
    and save canonical nodes only after their children are stored. Root depth is
    zero; traversed directories deeper than 256 are rejected.
-5. Create a unique snapshot record only after the root is saved. Publish it through
-   the same synced no-clobber helper. No global history index is required.
+5. Sync every dirty object directory once, deepest first, including newly created
+   shards, their namespaces and the store root. Only after this complete barrier
+   create/publish the snapshot record, sync its history directory, remove the pending
+   marker, and sync the store root. No global history index is required.
 
 A file change alters its manifest, parent node, and affected ancestors. Unchanged
 sibling subtrees retain their identities and reuse stored nodes. Independent
@@ -191,29 +197,67 @@ partial successful-looking report. Stdout failures propagate as errors too.
 ## Durability and security boundary
 
 New objects use unique same-filesystem temporary files: write all bytes, flush,
-`sync_all`, then `tempfile::persist_noclobber`. On Unix this uses hard-link style
-publication rather than replacing an existing object with ordinary rename. Sync
-the parent after publication. Newly created directories and their parents are
-synced, including `.` for a relative top-level store. File/directory errors propagate.
-Symlink leaf directory namespaces are rejected when created/validated.
+`sync_all`, then `tempfile::persist_noclobber`. This preserves atomic no-clobber
+publication (native no-replace rename when supported, with the dependency's
+hard-link fallback). Every new object's file sync completes **before** its final
+hash name appears. Existing chunks/manifests/nodes are still verified before reuse.
 
-Before snapshot publication, failure may leave unreferenced immutable objects but
-no new history record. Tests inject an error after tempfile sync and before final
-publication, and test directory-sync errors and blocked history paths. These are
-ordinary fault tests, not abrupt-kill/power-loss simulations. Once publication
-occurs, a parent-sync or cleanup failure can return an error with the object/record
-or complete restored output already visible. Error is not a rollback guarantee.
-Tempfiles/hard links and partial restore stages can survive interruption; no
-scavenger, transaction recovery journal, retention or GC protocol exists. Retrying
-after a directory-sync error is not a tested durability-recovery protocol; existing
-objects/directories are not globally re-synced or repaired on open.
+Capture alone defers object **directory** syncs. Its private owned session holds
+`writer.lock` for recovery, ingestion, the object barrier, snapshot publication,
+and pending-marker cleanup. A set deduplicates dirty directory paths; syncing
+children before parents makes both object names and newly created ancestor links
+durable before any snapshot name appears. The session is sealed after the barrier;
+it rejects new object publication and refuses snapshot publication before sealing.
+Standalone chunk puts, manifest saves and node saves retain immediate per-object
+file and directory syncs. They also acquire the same writer lock and use the marker,
+so a failed standalone publication cannot leave an untracked reuse hazard.
+`store_file` coordinates each object mutation; it is not a whole-file transaction.
 
-Filesystem/hardware must honor sync. Non-Unix lacks the portable directory-sync
-behavior. macOS does not request F_FULLFSYNC's stronger drive-cache barrier.
-Network filesystem semantics and power-loss durability are untested. Single writer
-is an unenforced caller contract; readers are not coordinated with deletion/GC.
-The store and destination parent must be trusted/stable. These checks do not create
-a filesystem sandbox against hostile same-user ancestor/mount mutations.
+`writer.lock` is a permanent regular file, locked through `File::lock` on an owned
+file descriptor. It must never be deleted/replaced while a process uses the store.
+Waiting writers block. Locks are advisory: external programs can ignore them.
+Separate handles/processes coordinate; read-only commands do not acquire a writer
+lock or perform recovery. No concurrent GC/deletion protocol exists. The pending
+marker is **not** a lock, and is inspected/recovered only under the real lock.
+
+The marker contains exactly `rewind-pending-v1\n` (bounded read, version checked).
+It is published with a synced temporary and root-directory sync before write work.
+On the next mutation, recovery syncs all surviving directories in chunks, manifests,
+trees and snapshots, deepest first, followed by the root and its canonical
+ancestors. This also repairs surviving links from interrupted initialization.
+Lost shards are absent and cannot be reused; surviving ancestors are synced and
+missing objects are safely recreated when needed. Recovery rejects malformed or
+symlink markers/namespaces, unsupported special entries and unexpected directory
+depth. It is a namespace barrier, not a full content scan: reuse still checks bytes.
+
+**Recovery fails closed:** scanning or barrier failure returns an error with the
+marker retained. It is removed only after the barrier succeeds; root sync then
+makes removal durable. File objects published by this protocol had already been
+file-synced, so recovery does not need to sync their payloads again. This assumption
+requires a trusted store and no older untracked failed writes. The marker cannot
+retroactively detect incomplete writes made by older releases without a journal.
+Do not run older writers concurrently: they do not honor the lock or journal.
+
+Before the object barrier finishes, capture failure leaves no new history record.
+It may leave synced but unreferenced objects, incomplete tempfiles and a marker.
+After the barrier, all referenced object names/data are durable under the existing
+sync contract. A crash after snapshot publication but before history-directory
+sync may preserve or lose that record, but any surviving record references the
+completed graph. A later sync/cleanup error can return failure with a valid record
+visible. Dropping a failed session releases its lock and leaves its marker; Drop
+never attempts fallible commit/cleanup. Successful marker unlink followed by a
+failed root sync is also safe: the already completed graph/record barriers do not
+rely on that unlink, and a reappearing marker causes harmless extra recovery.
+
+Fault-injection, abrupt child exits and SIGKILL tests exercise these boundaries.
+They are process-crash tests, **not actual power-loss tests**. In particular, a
+process kill leaves the kernel's caches intact. Filesystem/hardware must honor
+`sync_all`. macOS still does not request F_FULLFSYNC's stronger drive-cache barrier;
+network filesystem semantics and real power-loss behavior are untested. Non-Unix
+lacks portable directory sync; its guarantees remain limited and unvalidated.
+No scavenger, retention or GC is added; orphan objects and temporary restore stages
+can remain. Trusted/stable store paths and destination parents remain required;
+these checks do not create a sandbox against hostile ancestor/mount mutations.
 
 Hashes detect content corruption, not authenticity. Record IDs are opaque, so
 plausible edits to capture metadata or another valid root cannot be authenticated.
@@ -235,10 +279,11 @@ calls for new objects. Verified duplicate chunks/manifests/nodes now avoid tempo
 writes and syncs; a new history record still requires durable publication. Repeated
 captures still read/chunk/hash source bytes and read/verify existing objects even
 when chunk-store growth is zero. Snapshot publication, format versions and public
-per-object durability contracts are unchanged. Directory sync batching, worker pools
-and packed storage are not implemented. Native baseline measurements are in
+per-object durability contracts are preserved. Capture directory sync batching is
+implemented; worker pools and packed storage are not. Native baseline measurements are in
 [validation](validation.md); [verified reuse results](verified-reuse.md) record the
-approved optimization. Small datasets are not proof of an asymptotic bound or a
+earlier optimization. [Capture batching](capture-batching.md) documents the current
+protocol, benchmarks and remaining costs. Small datasets are not proof of an asymptotic bound or a
 cross-tool speedup.
 
 Names must be UTF-8, <=255 bytes and portable single components: no dot/dot-dot,
@@ -256,8 +301,8 @@ are absent.
 
 Agree the next scope before starting. A reasonable sequence is:
 
-1. Define source-mutation detection/retry policy and enforce single-writer locking;
-   broaden abrupt-interruption/commit recovery tests before adding concurrency.
+1. Define source-mutation detection/retry policy; broaden platform and actual
+   crash/power-loss validation before considering persistence concurrency.
 2. Add a watcher frontend with explicit debounce, overflow/error handling and full
    rescan fallback, retaining manual capture as the correctness reference.
 3. Track changed paths and rebuild affected Merkle ancestors incrementally; test

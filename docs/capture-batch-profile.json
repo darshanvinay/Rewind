@@ -1,0 +1,2266 @@
+{
+  "measured_at_utc": "2026-11-10T18:05:48.358218+00:00",
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "python": "3.13.13",
+    "cpu": "Apple M4",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+    "baseline_sha256": "a774001ac602dec071da07a4550a8ac12261fee86a06cab24ea3cf8bb388899b",
+    "optimized_sha256": "1befb4edfeb073306458fdd6249ea6a9c6ab79838d8692cf20b42e72536becc6",
+    "reference_binary_supplied": true,
+    "instrumented_sha256": "b01d5d16c99ecd089f4a275b0e136297c714dad848dd55a402a6806079c3c960"
+  },
+  "source_sha256": {
+    "src/chunking.rs": "74648e5f04c210df51a48afcf4d376d634a8417641a79cb6a622b9a2794a5aed",
+    "src/diff.rs": "b881edd9d3c8ee39e0093703289f63ab4f4e8e98605efb1995b107244279d2d3",
+    "src/error.rs": "1bf06429b76513e81ff2b26b9707e849126ed905a2ceda36d750bd58cb7bc092",
+    "src/hashing.rs": "f71aa8d158e28b27507f2c3d4a04fdca0696120bc63aa4ade23d89886cc18153",
+    "src/lib.rs": "ee8308def518b0ea5ffcef406d83a5a1b0b02a6bd2bb86cfe29624b09ded22b7",
+    "src/main.rs": "06a68a035bb7dc0becfd6bece5200ec25d0599c4e262c7763a58281204911160",
+    "src/manifest.rs": "86ce4703f881e7c332ee1b9aaf65859873dfa57e868b5e8f52c2798211fc4ddc",
+    "src/snapshot.rs": "aef1436d6e38e4d6e418ce4fd238fbb80c66bbc9af440e475837f3a0e66cec7d",
+    "src/snapshot_restore.rs": "39706da00964a719ea94ee2de4dd979e37bd5ab8d105b23ea3bdcaba3719967b",
+    "src/storage.rs": "8711b50a2801521f9db2741fd87e9a4473915089225fb7d93e6976ba7a6d68ec",
+    "src/transaction.rs": "4145499a64f14f79be83f3dad9718ec23a8f07b19576cb28aff0c6b66d1d2ae9",
+    "src/tree.rs": "aa61f6462f3eabe3504a68e87f853436b2af5ff28503999b3a474f00ab38f1e6"
+  },
+  "method": {
+    "dataset": "SHAKE256(rewind-capture-profile-v1), split into one or many equal-sized distinct files; root directory only",
+    "source_bytes": 33554432,
+    "many_files": 256,
+    "trials": 1,
+    "patch": "XOR 4096 bytes at chosen file midpoint +137; middle file in many-file dataset",
+    "cache": "warm/uncontrolled; generated then SHA-256 validated before each fresh capture; no cache eviction",
+    "timers": "Instant wall timers in a disposable source copy; exclusive children subtracted; inclusive high-level stages overlap",
+    "io_counts": "Rust read/write/sync_all calls and publication attempts; not an OS-wide syscall or physical-disk-write trace",
+    "cpu_rss": "native /usr/bin/time; elapsed includes launcher/startup; instrumented elapsed also includes profile export",
+    "validation": "unmodified and instrumented roots/chunk-store sizes equal; A/B restore maps verified after source renamed"
+  },
+  "samples": [
+    {
+      "files": 1,
+      "source_bytes": 33554432,
+      "directories": 1,
+      "trial": 1,
+      "execution_order": [
+        "baseline",
+        "instrumented",
+        "optimized"
+      ],
+      "baseline": [
+        {
+          "phase": "fresh",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 4.427185791981174,
+            "native_real_seconds": 4.42,
+            "cpu_user_seconds": 0.16,
+            "cpu_system_seconds": 0.51,
+            "peak_rss_bytes": 7143424,
+            "native_time_output": "        4.42 real         0.16 user         0.51 sys\n             7143424  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 622  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                3598  voluntary context switches\n                 535  involuntary context switches\n          1749261957  instructions retired\n           916987443  cycles elapsed\n             6668816  peak memory footprint\n"
+          },
+          "root": "7de2310c549d3fb25191037ab86c212357d35a33e7de36e45f94018a37401748",
+          "chunk_store": {
+            "objects": 415,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "unchanged",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.090374333987711,
+            "native_real_seconds": 0.08,
+            "cpu_user_seconds": 0.06,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 2899968,
+            "native_time_output": "        0.08 real         0.06 user         0.01 sys\n             2899968  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 363  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   7  voluntary context switches\n                   4  involuntary context switches\n           912060682  instructions retired\n           278904978  cycles elapsed\n             2195672  peak memory footprint\n"
+          },
+          "root": "7de2310c549d3fb25191037ab86c212357d35a33e7de36e45f94018a37401748",
+          "chunk_store": {
+            "objects": 415,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "modified",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.10022254200885072,
+            "native_real_seconds": 0.09,
+            "cpu_user_seconds": 0.05,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 3801088,
+            "native_time_output": "        0.09 real         0.05 user         0.01 sys\n             3801088  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 418  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  31  voluntary context switches\n                   7  involuntary context switches\n           916774082  instructions retired\n           281282779  cycles elapsed\n             3178808  peak memory footprint\n"
+          },
+          "root": "a3a0e5c9fa912b815af09b2d7b88b6f6e10d0958d2069fea6d1ae80a386c273d",
+          "chunk_store": {
+            "objects": 416,
+            "payload_bytes": 33755904
+          }
+        }
+      ],
+      "instrumented": [
+        {
+          "phase": "fresh",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 2.9575424999929965,
+            "native_real_seconds": 2.95,
+            "cpu_user_seconds": 0.18,
+            "cpu_system_seconds": 0.44,
+            "peak_rss_bytes": 6094848,
+            "native_time_output": "        2.95 real         0.18 user         0.44 sys\n             6094848  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 559  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                2338  voluntary context switches\n                 293  involuntary context switches\n          1696508404  instructions retired\n           833318979  cycles elapsed\n             5571112  peak memory footprint\n"
+          },
+          "root": "7de2310c549d3fb25191037ab86c212357d35a33e7de36e45f94018a37401748",
+          "chunk_store": {
+            "objects": 415,
+            "payload_bytes": 33554432
+          },
+          "profile": {
+            "counters": {
+              "chunk_bytes": 33554432,
+              "chunks": 415,
+              "data_bytes_written.chunk": 33554432,
+              "data_bytes_written.manifest": 38079,
+              "data_bytes_written.other": 18,
+              "data_bytes_written.snapshot": 371,
+              "data_bytes_written.tree": 197,
+              "directories_created.chunk": 210,
+              "directories_created.snapshot": 1,
+              "directories_created.tree": 2,
+              "hashed_bytes.chunk": 33554432,
+              "hashed_bytes.manifest": 38079,
+              "hashed_bytes.tree": 197,
+              "lookup_missing.chunk": 415,
+              "lookup_missing.manifest": 1,
+              "lookup_missing.tree": 1,
+              "nonce_tempfiles": 1,
+              "published.chunk": 415,
+              "published.manifest": 1,
+              "published.other": 1,
+              "published.snapshot": 1,
+              "published.tree": 1,
+              "source_bytes_read": 33554432
+            },
+            "timings": {
+              "blake3.chunk": {
+                "calls": 415,
+                "exclusive_ns": 50800332,
+                "inclusive_ns": 50800332
+              },
+              "blake3.manifest": {
+                "calls": 1,
+                "exclusive_ns": 43292,
+                "inclusive_ns": 43292
+              },
+              "blake3.tree": {
+                "calls": 1,
+                "exclusive_ns": 2791,
+                "inclusive_ns": 2791
+              },
+              "blake3_file": {
+                "calls": 416,
+                "exclusive_ns": 55362086,
+                "inclusive_ns": 55362086
+              },
+              "capture_total": {
+                "calls": 1,
+                "exclusive_ns": 1406801,
+                "inclusive_ns": 2948966917
+              },
+              "chunk_store": {
+                "calls": 415,
+                "exclusive_ns": 2780518,
+                "inclusive_ns": 1940074497
+              },
+              "chunk_verify": {
+                "calls": 415,
+                "exclusive_ns": 1116187,
+                "inclusive_ns": 11071853
+              },
+              "data_write.chunk": {
+                "calls": 415,
+                "exclusive_ns": 57954760,
+                "inclusive_ns": 57954760
+              },
+              "data_write.manifest": {
+                "calls": 1,
+                "exclusive_ns": 343750,
+                "inclusive_ns": 343750
+              },
+              "data_write.other": {
+                "calls": 1,
+                "exclusive_ns": 20042,
+                "inclusive_ns": 20042
+              },
+              "data_write.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 161917,
+                "inclusive_ns": 161917
+              },
+              "data_write.tree": {
+                "calls": 1,
+                "exclusive_ns": 108500,
+                "inclusive_ns": 108500
+              },
+              "directory_check_create.chunk": {
+                "calls": 625,
+                "exclusive_ns": 41545504,
+                "inclusive_ns": 49335264
+              },
+              "directory_check_create.manifest": {
+                "calls": 1,
+                "exclusive_ns": 749,
+                "inclusive_ns": 17791
+              },
+              "directory_check_create.other": {
+                "calls": 1,
+                "exclusive_ns": 250,
+                "inclusive_ns": 1375
+              },
+              "directory_check_create.snapshot": {
+                "calls": 3,
+                "exclusive_ns": 398625,
+                "inclusive_ns": 5019584
+              },
+              "directory_check_create.tree": {
+                "calls": 3,
+                "exclusive_ns": 345249,
+                "inclusive_ns": 573374
+              },
+              "directory_fsync.other": {
+                "calls": 216,
+                "exclusive_ns": 833231745,
+                "inclusive_ns": 833231745
+              },
+              "directory_fsync.snapshot": {
+                "calls": 4,
+                "exclusive_ns": 11192500,
+                "inclusive_ns": 11192500
+              },
+              "directory_sync_setup.other": {
+                "calls": 216,
+                "exclusive_ns": 18984288,
+                "inclusive_ns": 852216033
+              },
+              "directory_sync_setup.snapshot": {
+                "calls": 4,
+                "exclusive_ns": 284957,
+                "inclusive_ns": 11477457
+              },
+              "fastcdc": {
+                "calls": 416,
+                "exclusive_ns": 48352091,
+                "inclusive_ns": 68399923
+              },
+              "file_fsync.chunk": {
+                "calls": 415,
+                "exclusive_ns": 1503935169,
+                "inclusive_ns": 1503935169
+              },
+              "file_fsync.manifest": {
+                "calls": 1,
+                "exclusive_ns": 2653958,
+                "inclusive_ns": 2653958
+              },
+              "file_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 3673542,
+                "inclusive_ns": 3673542
+              },
+              "file_fsync.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 3032875,
+                "inclusive_ns": 3032875
+              },
+              "file_fsync.tree": {
+                "calls": 1,
+                "exclusive_ns": 3756792,
+                "inclusive_ns": 3756792
+              },
+              "file_ingest": {
+                "calls": 1,
+                "exclusive_ns": 1686619,
+                "inclusive_ns": 2065523125
+              },
+              "flush.chunk": {
+                "calls": 415,
+                "exclusive_ns": 20126,
+                "inclusive_ns": 20126
+              },
+              "flush.manifest": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.other": {
+                "calls": 1,
+                "exclusive_ns": 42,
+                "inclusive_ns": 42
+              },
+              "flush.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 83,
+                "inclusive_ns": 83
+              },
+              "flush.tree": {
+                "calls": 1,
+                "exclusive_ns": 42,
+                "inclusive_ns": 42
+              },
+              "manifest_persistence": {
+                "calls": 1,
+                "exclusive_ns": 182499,
+                "inclusive_ns": 3892208
+              },
+              "merkle_persistence": {
+                "calls": 1,
+                "exclusive_ns": 13752,
+                "inclusive_ns": 4842334
+              },
+              "metadata_check.chunk": {
+                "calls": 1040,
+                "exclusive_ns": 15015343,
+                "inclusive_ns": 15015343
+              },
+              "metadata_check.manifest": {
+                "calls": 2,
+                "exclusive_ns": 52208,
+                "inclusive_ns": 52208
+              },
+              "metadata_check.other": {
+                "calls": 2,
+                "exclusive_ns": 3459,
+                "inclusive_ns": 3459
+              },
+              "metadata_check.snapshot": {
+                "calls": 3,
+                "exclusive_ns": 69626,
+                "inclusive_ns": 69626
+              },
+              "metadata_check.tree": {
+                "calls": 4,
+                "exclusive_ns": 32167,
+                "inclusive_ns": 32167
+              },
+              "no_clobber_publish.chunk": {
+                "calls": 415,
+                "exclusive_ns": 158962800,
+                "inclusive_ns": 158962800
+              },
+              "no_clobber_publish.manifest": {
+                "calls": 1,
+                "exclusive_ns": 384750,
+                "inclusive_ns": 384750
+              },
+              "no_clobber_publish.other": {
+                "calls": 1,
+                "exclusive_ns": 165625,
+                "inclusive_ns": 165625
+              },
+              "no_clobber_publish.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 534792,
+                "inclusive_ns": 534792
+              },
+              "no_clobber_publish.tree": {
+                "calls": 1,
+                "exclusive_ns": 342250,
+                "inclusive_ns": 342250
+              },
+              "publish_setup_cleanup.chunk": {
+                "calls": 415,
+                "exclusive_ns": 17325726,
+                "inclusive_ns": 1875421794
+              },
+              "publish_setup_cleanup.manifest": {
+                "calls": 1,
+                "exclusive_ns": 44752,
+                "inclusive_ns": 3630167
+              },
+              "publish_setup_cleanup.other": {
+                "calls": 1,
+                "exclusive_ns": 23915,
+                "inclusive_ns": 7672291
+              },
+              "publish_setup_cleanup.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 57375,
+                "inclusive_ns": 7474125
+              },
+              "publish_setup_cleanup.tree": {
+                "calls": 1,
+                "exclusive_ns": 64083,
+                "inclusive_ns": 4809291
+              },
+              "snapshot_publication": {
+                "calls": 1,
+                "exclusive_ns": 1024917,
+                "inclusive_ns": 17001959
+              },
+              "source_read": {
+                "calls": 413,
+                "exclusive_ns": 20047832,
+                "inclusive_ns": 20047832
+              },
+              "stored_object_read.chunk": {
+                "calls": 415,
+                "exclusive_ns": 449906,
+                "inclusive_ns": 9955666
+              },
+              "stored_object_read.manifest": {
+                "calls": 1,
+                "exclusive_ns": 1084,
+                "inclusive_ns": 36250
+              },
+              "stored_object_read.other": {
+                "calls": 1,
+                "exclusive_ns": 666,
+                "inclusive_ns": 3000
+              },
+              "stored_object_read.tree": {
+                "calls": 1,
+                "exclusive_ns": 875,
+                "inclusive_ns": 16500
+              },
+              "tempfile_create.chunk": {
+                "calls": 415,
+                "exclusive_ns": 90168126,
+                "inclusive_ns": 90168126
+              },
+              "tempfile_create.manifest": {
+                "calls": 1,
+                "exclusive_ns": 185166,
+                "inclusive_ns": 185166
+              },
+              "tempfile_create.other": {
+                "calls": 1,
+                "exclusive_ns": 53708,
+                "inclusive_ns": 53708
+              },
+              "tempfile_create.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 244292,
+                "inclusive_ns": 244292
+              },
+              "tempfile_create.tree": {
+                "calls": 1,
+                "exclusive_ns": 175833,
+                "inclusive_ns": 175833
+              },
+              "traversal": {
+                "calls": 1,
+                "exclusive_ns": 143208,
+                "inclusive_ns": 2074400875
+              }
+            },
+            "unclosed_scopes": 0
+          }
+        },
+        {
+          "phase": "unchanged",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.10622424999019131,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.06,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 3063808,
+            "native_time_output": "        0.10 real         0.06 user         0.01 sys\n             3063808  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 374  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  17  voluntary context switches\n                   4  involuntary context switches\n           928936852  instructions retired\n           283124402  cycles elapsed\n             2293976  peak memory footprint\n"
+          },
+          "root": "7de2310c549d3fb25191037ab86c212357d35a33e7de36e45f94018a37401748",
+          "chunk_store": {
+            "objects": 415,
+            "payload_bytes": 33554432
+          },
+          "profile": {
+            "counters": {
+              "chunk_bytes": 33554432,
+              "chunks": 415,
+              "data_bytes_written.other": 18,
+              "data_bytes_written.snapshot": 371,
+              "hashed_bytes.chunk": 67108864,
+              "hashed_bytes.manifest": 38079,
+              "hashed_bytes.tree": 394,
+              "nonce_tempfiles": 1,
+              "published.other": 1,
+              "published.snapshot": 1,
+              "source_bytes_read": 33554432,
+              "verified_reuse.chunk": 415,
+              "verified_reuse.manifest": 1,
+              "verified_reuse.tree": 1
+            },
+            "timings": {
+              "blake3.chunk": {
+                "calls": 830,
+                "exclusive_ns": 33454238,
+                "inclusive_ns": 33454238
+              },
+              "blake3.manifest": {
+                "calls": 1,
+                "exclusive_ns": 15583,
+                "inclusive_ns": 15583
+              },
+              "blake3.tree": {
+                "calls": 2,
+                "exclusive_ns": 1125,
+                "inclusive_ns": 1125
+              },
+              "blake3_file": {
+                "calls": 416,
+                "exclusive_ns": 17242005,
+                "inclusive_ns": 17242005
+              },
+              "capture_total": {
+                "calls": 1,
+                "exclusive_ns": 171333,
+                "inclusive_ns": 99254042
+              },
+              "chunk_store": {
+                "calls": 415,
+                "exclusive_ns": 291660,
+                "inclusive_ns": 44388452
+              },
+              "chunk_verify": {
+                "calls": 415,
+                "exclusive_ns": 240974,
+                "inclusive_ns": 27394666
+              },
+              "data_write.other": {
+                "calls": 1,
+                "exclusive_ns": 53042,
+                "inclusive_ns": 53042
+              },
+              "data_write.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 30125,
+                "inclusive_ns": 30125
+              },
+              "directory_check_create.other": {
+                "calls": 1,
+                "exclusive_ns": 416,
+                "inclusive_ns": 2208
+              },
+              "directory_check_create.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 541,
+                "inclusive_ns": 4250
+              },
+              "directory_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 2629708,
+                "inclusive_ns": 2629708
+              },
+              "directory_fsync.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 6628916,
+                "inclusive_ns": 6628916
+              },
+              "directory_sync_setup.other": {
+                "calls": 1,
+                "exclusive_ns": 17834,
+                "inclusive_ns": 2647542
+              },
+              "directory_sync_setup.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 20125,
+                "inclusive_ns": 6649041
+              },
+              "fastcdc": {
+                "calls": 416,
+                "exclusive_ns": 14352744,
+                "inclusive_ns": 16818488
+              },
+              "file_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 4948250,
+                "inclusive_ns": 4948250
+              },
+              "file_fsync.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 5228417,
+                "inclusive_ns": 5228417
+              },
+              "file_ingest": {
+                "calls": 1,
+                "exclusive_ns": 143805,
+                "inclusive_ns": 78592750
+              },
+              "flush.other": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "manifest_persistence": {
+                "calls": 1,
+                "exclusive_ns": 34666,
+                "inclusive_ns": 70416
+              },
+              "merkle_persistence": {
+                "calls": 1,
+                "exclusive_ns": 17333,
+                "inclusive_ns": 32333
+              },
+              "metadata_check.chunk": {
+                "calls": 830,
+                "exclusive_ns": 1140240,
+                "inclusive_ns": 1140240
+              },
+              "metadata_check.manifest": {
+                "calls": 2,
+                "exclusive_ns": 3542,
+                "inclusive_ns": 3542
+              },
+              "metadata_check.other": {
+                "calls": 2,
+                "exclusive_ns": 8500,
+                "inclusive_ns": 8500
+              },
+              "metadata_check.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 3709,
+                "inclusive_ns": 3709
+              },
+              "metadata_check.tree": {
+                "calls": 2,
+                "exclusive_ns": 3625,
+                "inclusive_ns": 3625
+              },
+              "no_clobber_publish.other": {
+                "calls": 1,
+                "exclusive_ns": 149917,
+                "inclusive_ns": 149917
+              },
+              "no_clobber_publish.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 115292,
+                "inclusive_ns": 115292
+              },
+              "publish_setup_cleanup.other": {
+                "calls": 1,
+                "exclusive_ns": 19833,
+                "inclusive_ns": 7950125
+              },
+              "publish_setup_cleanup.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 12250,
+                "inclusive_ns": 8370042
+              },
+              "snapshot_publication": {
+                "calls": 1,
+                "exclusive_ns": 287917,
+                "inclusive_ns": 12368209
+              },
+              "source_read": {
+                "calls": 413,
+                "exclusive_ns": 2465744,
+                "inclusive_ns": 2465744
+              },
+              "stored_object_read.chunk": {
+                "calls": 415,
+                "exclusive_ns": 9261340,
+                "inclusive_ns": 10401580
+              },
+              "stored_object_read.manifest": {
+                "calls": 1,
+                "exclusive_ns": 16625,
+                "inclusive_ns": 20167
+              },
+              "stored_object_read.other": {
+                "calls": 1,
+                "exclusive_ns": 1667,
+                "inclusive_ns": 8375
+              },
+              "stored_object_read.tree": {
+                "calls": 1,
+                "exclusive_ns": 10250,
+                "inclusive_ns": 13875
+              },
+              "tempfile_create.other": {
+                "calls": 1,
+                "exclusive_ns": 129333,
+                "inclusive_ns": 129333
+              },
+              "tempfile_create.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 40917,
+                "inclusive_ns": 40917
+              },
+              "traversal": {
+                "calls": 1,
+                "exclusive_ns": 60501,
+                "inclusive_ns": 78756000
+              }
+            },
+            "unclosed_scopes": 0
+          }
+        },
+        {
+          "phase": "modified",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.11077216599369422,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.05,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 3915776,
+            "native_time_output": "        0.10 real         0.05 user         0.01 sys\n             3915776  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 426  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  38  voluntary context switches\n                  10  involuntary context switches\n           935081987  instructions retired\n           285852435  cycles elapsed\n             3195144  peak memory footprint\n"
+          },
+          "root": "a3a0e5c9fa912b815af09b2d7b88b6f6e10d0958d2069fea6d1ae80a386c273d",
+          "chunk_store": {
+            "objects": 416,
+            "payload_bytes": 33755904
+          },
+          "profile": {
+            "counters": {
+              "chunk_bytes": 33554432,
+              "chunks": 415,
+              "data_bytes_written.chunk": 201472,
+              "data_bytes_written.manifest": 38079,
+              "data_bytes_written.other": 18,
+              "data_bytes_written.snapshot": 371,
+              "data_bytes_written.tree": 197,
+              "directories_created.tree": 1,
+              "hashed_bytes.chunk": 66907392,
+              "hashed_bytes.manifest": 38079,
+              "hashed_bytes.tree": 197,
+              "lookup_missing.chunk": 1,
+              "lookup_missing.manifest": 1,
+              "lookup_missing.tree": 1,
+              "nonce_tempfiles": 1,
+              "published.chunk": 1,
+              "published.manifest": 1,
+              "published.other": 1,
+              "published.snapshot": 1,
+              "published.tree": 1,
+              "source_bytes_read": 33554432,
+              "verified_reuse.chunk": 414
+            },
+            "timings": {
+              "blake3.chunk": {
+                "calls": 829,
+                "exclusive_ns": 26567664,
+                "inclusive_ns": 26567664
+              },
+              "blake3.manifest": {
+                "calls": 1,
+                "exclusive_ns": 15333,
+                "inclusive_ns": 15333
+              },
+              "blake3.tree": {
+                "calls": 1,
+                "exclusive_ns": 625,
+                "inclusive_ns": 625
+              },
+              "blake3_file": {
+                "calls": 416,
+                "exclusive_ns": 13691112,
+                "inclusive_ns": 13691112
+              },
+              "capture_total": {
+                "calls": 1,
+                "exclusive_ns": 112706,
+                "inclusive_ns": 106863375
+              },
+              "chunk_store": {
+                "calls": 415,
+                "exclusive_ns": 241243,
+                "inclusive_ns": 39831285
+              },
+              "chunk_verify": {
+                "calls": 415,
+                "exclusive_ns": 206375,
+                "inclusive_ns": 21514413
+              },
+              "data_write.chunk": {
+                "calls": 1,
+                "exclusive_ns": 21500,
+                "inclusive_ns": 21500
+              },
+              "data_write.manifest": {
+                "calls": 1,
+                "exclusive_ns": 32667,
+                "inclusive_ns": 32667
+              },
+              "data_write.other": {
+                "calls": 1,
+                "exclusive_ns": 20959,
+                "inclusive_ns": 20959
+              },
+              "data_write.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 100917,
+                "inclusive_ns": 100917
+              },
+              "data_write.tree": {
+                "calls": 1,
+                "exclusive_ns": 24833,
+                "inclusive_ns": 24833
+              },
+              "directory_check_create.chunk": {
+                "calls": 1,
+                "exclusive_ns": 168,
+                "inclusive_ns": 1459
+              },
+              "directory_check_create.manifest": {
+                "calls": 1,
+                "exclusive_ns": 209,
+                "inclusive_ns": 1917
+              },
+              "directory_check_create.other": {
+                "calls": 1,
+                "exclusive_ns": 292,
+                "inclusive_ns": 1334
+              },
+              "directory_check_create.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 584,
+                "inclusive_ns": 4541
+              },
+              "directory_check_create.tree": {
+                "calls": 2,
+                "exclusive_ns": 126292,
+                "inclusive_ns": 131042
+              },
+              "directory_fsync.other": {
+                "calls": 7,
+                "exclusive_ns": 14807459,
+                "inclusive_ns": 14807459
+              },
+              "directory_fsync.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 7725875,
+                "inclusive_ns": 7725875
+              },
+              "directory_sync_setup.other": {
+                "calls": 7,
+                "exclusive_ns": 122334,
+                "inclusive_ns": 14929793
+              },
+              "directory_sync_setup.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 27874,
+                "inclusive_ns": 7753749
+              },
+              "fastcdc": {
+                "calls": 416,
+                "exclusive_ns": 11422047,
+                "inclusive_ns": 13268254
+              },
+              "file_fsync.chunk": {
+                "calls": 1,
+                "exclusive_ns": 4529666,
+                "inclusive_ns": 4529666
+              },
+              "file_fsync.manifest": {
+                "calls": 1,
+                "exclusive_ns": 3914375,
+                "inclusive_ns": 3914375
+              },
+              "file_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 4648500,
+                "inclusive_ns": 4648500
+              },
+              "file_fsync.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 3633250,
+                "inclusive_ns": 3633250
+              },
+              "file_fsync.tree": {
+                "calls": 1,
+                "exclusive_ns": 3628791,
+                "inclusive_ns": 3628791
+              },
+              "file_ingest": {
+                "calls": 1,
+                "exclusive_ns": 125016,
+                "inclusive_ns": 66915667
+              },
+              "flush.chunk": {
+                "calls": 1,
+                "exclusive_ns": 42,
+                "inclusive_ns": 42
+              },
+              "flush.manifest": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.other": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.tree": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "manifest_persistence": {
+                "calls": 1,
+                "exclusive_ns": 35084,
+                "inclusive_ns": 4212667
+              },
+              "merkle_persistence": {
+                "calls": 1,
+                "exclusive_ns": 2958,
+                "inclusive_ns": 3910750
+              },
+              "metadata_check.chunk": {
+                "calls": 830,
+                "exclusive_ns": 885680,
+                "inclusive_ns": 885680
+              },
+              "metadata_check.manifest": {
+                "calls": 2,
+                "exclusive_ns": 9583,
+                "inclusive_ns": 9583
+              },
+              "metadata_check.other": {
+                "calls": 2,
+                "exclusive_ns": 3167,
+                "inclusive_ns": 3167
+              },
+              "metadata_check.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 3957,
+                "inclusive_ns": 3957
+              },
+              "metadata_check.tree": {
+                "calls": 3,
+                "exclusive_ns": 8792,
+                "inclusive_ns": 8792
+              },
+              "no_clobber_publish.chunk": {
+                "calls": 1,
+                "exclusive_ns": 100208,
+                "inclusive_ns": 100208
+              },
+              "no_clobber_publish.manifest": {
+                "calls": 1,
+                "exclusive_ns": 114000,
+                "inclusive_ns": 114000
+              },
+              "no_clobber_publish.other": {
+                "calls": 1,
+                "exclusive_ns": 107834,
+                "inclusive_ns": 107834
+              },
+              "no_clobber_publish.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 80292,
+                "inclusive_ns": 80292
+              },
+              "no_clobber_publish.tree": {
+                "calls": 1,
+                "exclusive_ns": 72083,
+                "inclusive_ns": 72083
+              },
+              "publish_setup_cleanup.chunk": {
+                "calls": 1,
+                "exclusive_ns": 38167,
+                "inclusive_ns": 4753542
+              },
+              "publish_setup_cleanup.manifest": {
+                "calls": 1,
+                "exclusive_ns": 36792,
+                "inclusive_ns": 4154167
+              },
+              "publish_setup_cleanup.other": {
+                "calls": 1,
+                "exclusive_ns": 20165,
+                "inclusive_ns": 8700292
+              },
+              "publish_setup_cleanup.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 18958,
+                "inclusive_ns": 7669500
+              },
+              "publish_setup_cleanup.tree": {
+                "calls": 1,
+                "exclusive_ns": 7834,
+                "inclusive_ns": 3900875
+              },
+              "snapshot_publication": {
+                "calls": 1,
+                "exclusive_ns": 235334,
+                "inclusive_ns": 11871750
+              },
+              "source_read": {
+                "calls": 413,
+                "exclusive_ns": 1846207,
+                "inclusive_ns": 1846207
+              },
+              "stored_object_read.chunk": {
+                "calls": 415,
+                "exclusive_ns": 7178072,
+                "inclusive_ns": 8062461
+              },
+              "stored_object_read.manifest": {
+                "calls": 1,
+                "exclusive_ns": 208,
+                "inclusive_ns": 8083
+              },
+              "stored_object_read.other": {
+                "calls": 1,
+                "exclusive_ns": 375,
+                "inclusive_ns": 2500
+              },
+              "stored_object_read.tree": {
+                "calls": 1,
+                "exclusive_ns": 292,
+                "inclusive_ns": 6292
+              },
+              "tempfile_create.chunk": {
+                "calls": 1,
+                "exclusive_ns": 62500,
+                "inclusive_ns": 62500
+              },
+              "tempfile_create.manifest": {
+                "calls": 1,
+                "exclusive_ns": 54416,
+                "inclusive_ns": 54416
+              },
+              "tempfile_create.other": {
+                "calls": 1,
+                "exclusive_ns": 50542,
+                "inclusive_ns": 50542
+              },
+              "tempfile_create.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 44709,
+                "inclusive_ns": 44709
+              },
+              "tempfile_create.tree": {
+                "calls": 1,
+                "exclusive_ns": 38250,
+                "inclusive_ns": 38250
+              },
+              "traversal": {
+                "calls": 1,
+                "exclusive_ns": 58208,
+                "inclusive_ns": 75097292
+              }
+            },
+            "unclosed_scopes": 0
+          }
+        }
+      ],
+      "optimized": [
+        {
+          "phase": "fresh",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 2.995276457979344,
+            "native_real_seconds": 2.99,
+            "cpu_user_seconds": 0.16,
+            "cpu_system_seconds": 0.46,
+            "peak_rss_bytes": 5799936,
+            "native_time_output": "        2.99 real         0.16 user         0.46 sys\n             5799936  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 540  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                2335  voluntary context switches\n                 431  involuntary context switches\n          1671679841  instructions retired\n           847441089  cycles elapsed\n             5276176  peak memory footprint\n"
+          },
+          "root": "7de2310c549d3fb25191037ab86c212357d35a33e7de36e45f94018a37401748",
+          "chunk_store": {
+            "objects": 415,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "unchanged",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.1077903329860419,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.06,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 2965504,
+            "native_time_output": "        0.10 real         0.06 user         0.01 sys\n             2965504  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 367  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  17  voluntary context switches\n                   4  involuntary context switches\n           913688920  instructions retired\n           281339234  cycles elapsed\n             2244848  peak memory footprint\n"
+          },
+          "root": "7de2310c549d3fb25191037ab86c212357d35a33e7de36e45f94018a37401748",
+          "chunk_store": {
+            "objects": 415,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "modified",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.11168362500029616,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.05,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 3850240,
+            "native_time_output": "        0.10 real         0.05 user         0.01 sys\n             3850240  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 421  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  38  voluntary context switches\n                   7  involuntary context switches\n           918766242  instructions retired\n           284004177  cycles elapsed\n             3145992  peak memory footprint\n"
+          },
+          "root": "a3a0e5c9fa912b815af09b2d7b88b6f6e10d0958d2069fea6d1ae80a386c273d",
+          "chunk_store": {
+            "objects": 416,
+            "payload_bytes": 33755904
+          }
+        }
+      ]
+    },
+    {
+      "files": 256,
+      "source_bytes": 33554432,
+      "directories": 1,
+      "trial": 1,
+      "execution_order": [
+        "baseline",
+        "instrumented",
+        "optimized"
+      ],
+      "baseline": [
+        {
+          "phase": "fresh",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 7.898694249975961,
+            "native_real_seconds": 7.89,
+            "cpu_user_seconds": 0.17,
+            "cpu_system_seconds": 0.97,
+            "peak_rss_bytes": 6766592,
+            "native_time_output": "        7.89 real         0.17 user         0.97 sys\n             6766592  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 599  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                6511  voluntary context switches\n                1200  involuntary context switches\n          2699671081  instructions retired\n          1568182547  cycles elapsed\n             6275576  peak memory footprint\n"
+          },
+          "root": "25f223948daa7b1a014204dad15593c4300454c4db892a06c9c42b934a7760cd",
+          "chunk_store": {
+            "objects": 567,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "unchanged",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.0988768330134917,
+            "native_real_seconds": 0.09,
+            "cpu_user_seconds": 0.06,
+            "cpu_system_seconds": 0.02,
+            "peak_rss_bytes": 2523136,
+            "native_time_output": "        0.09 real         0.06 user         0.02 sys\n             2523136  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 324  page reclaims\n                  16  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   9  voluntary context switches\n                   5  involuntary context switches\n          1034196091  instructions retired\n           310078406  cycles elapsed\n             1818840  peak memory footprint\n"
+          },
+          "root": "25f223948daa7b1a014204dad15593c4300454c4db892a06c9c42b934a7760cd",
+          "chunk_store": {
+            "objects": 567,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "modified",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.1057264159899205,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.05,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 2506752,
+            "native_time_output": "        0.10 real         0.05 user         0.01 sys\n             2506752  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 339  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  31  voluntary context switches\n                   6  involuntary context switches\n          1033670972  instructions retired\n           308343482  cycles elapsed\n             1835248  peak memory footprint\n"
+          },
+          "root": "725832bf1decf23d529d27f59b2c358d4ef48c0e92fdccf1edca96d40567e859",
+          "chunk_store": {
+            "objects": 568,
+            "payload_bytes": 33678612
+          }
+        }
+      ],
+      "instrumented": [
+        {
+          "phase": "fresh",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 4.875875416008057,
+            "native_real_seconds": 4.87,
+            "cpu_user_seconds": 0.19,
+            "cpu_system_seconds": 0.78,
+            "peak_rss_bytes": 7749632,
+            "native_time_output": "        4.87 real         0.19 user         0.78 sys\n             7749632  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 660  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                4029  voluntary context switches\n                 608  involuntary context switches\n          2610770681  instructions retired\n          1321895907  cycles elapsed\n             7258712  peak memory footprint\n"
+          },
+          "root": "25f223948daa7b1a014204dad15593c4300454c4db892a06c9c42b934a7760cd",
+          "chunk_store": {
+            "objects": 567,
+            "payload_bytes": 33554432
+          },
+          "profile": {
+            "counters": {
+              "chunk_bytes": 33554432,
+              "chunks": 567,
+              "data_bytes_written.chunk": 33554432,
+              "data_bytes_written.manifest": 103604,
+              "data_bytes_written.other": 18,
+              "data_bytes_written.snapshot": 373,
+              "data_bytes_written.tree": 36917,
+              "directories_created.chunk": 231,
+              "directories_created.snapshot": 1,
+              "directories_created.tree": 2,
+              "hashed_bytes.chunk": 33554432,
+              "hashed_bytes.manifest": 103604,
+              "hashed_bytes.tree": 36917,
+              "lookup_missing.chunk": 567,
+              "lookup_missing.manifest": 256,
+              "lookup_missing.tree": 1,
+              "nonce_tempfiles": 1,
+              "published.chunk": 567,
+              "published.manifest": 256,
+              "published.other": 1,
+              "published.snapshot": 1,
+              "published.tree": 1,
+              "source_bytes_read": 33554432
+            },
+            "timings": {
+              "blake3.chunk": {
+                "calls": 567,
+                "exclusive_ns": 50932656,
+                "inclusive_ns": 50932656
+              },
+              "blake3.manifest": {
+                "calls": 256,
+                "exclusive_ns": 741793,
+                "inclusive_ns": 741793
+              },
+              "blake3.tree": {
+                "calls": 1,
+                "exclusive_ns": 36333,
+                "inclusive_ns": 36333
+              },
+              "blake3_file": {
+                "calls": 823,
+                "exclusive_ns": 54409177,
+                "inclusive_ns": 54409177
+              },
+              "capture_total": {
+                "calls": 1,
+                "exclusive_ns": 1521668,
+                "inclusive_ns": 4869034917
+              },
+              "chunk_store": {
+                "calls": 567,
+                "exclusive_ns": 3908261,
+                "inclusive_ns": 2608636979
+              },
+              "chunk_verify": {
+                "calls": 567,
+                "exclusive_ns": 1505780,
+                "inclusive_ns": 14085066
+              },
+              "data_write.chunk": {
+                "calls": 567,
+                "exclusive_ns": 84276703,
+                "inclusive_ns": 84276703
+              },
+              "data_write.manifest": {
+                "calls": 256,
+                "exclusive_ns": 28135251,
+                "inclusive_ns": 28135251
+              },
+              "data_write.other": {
+                "calls": 1,
+                "exclusive_ns": 20250,
+                "inclusive_ns": 20250
+              },
+              "data_write.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 155375,
+                "inclusive_ns": 155375
+              },
+              "data_write.tree": {
+                "calls": 1,
+                "exclusive_ns": 121791,
+                "inclusive_ns": 121791
+              },
+              "directory_check_create.chunk": {
+                "calls": 798,
+                "exclusive_ns": 44674730,
+                "inclusive_ns": 52787330
+              },
+              "directory_check_create.manifest": {
+                "calls": 256,
+                "exclusive_ns": 212381,
+                "inclusive_ns": 2632589
+              },
+              "directory_check_create.other": {
+                "calls": 1,
+                "exclusive_ns": 249,
+                "inclusive_ns": 1291
+              },
+              "directory_check_create.snapshot": {
+                "calls": 3,
+                "exclusive_ns": 416876,
+                "inclusive_ns": 4035958
+              },
+              "directory_check_create.tree": {
+                "calls": 3,
+                "exclusive_ns": 327541,
+                "inclusive_ns": 580333
+              },
+              "directory_fsync.other": {
+                "calls": 237,
+                "exclusive_ns": 909442997,
+                "inclusive_ns": 909442997
+              },
+              "directory_fsync.snapshot": {
+                "calls": 4,
+                "exclusive_ns": 11292502,
+                "inclusive_ns": 11292502
+              },
+              "directory_sync_setup.other": {
+                "calls": 237,
+                "exclusive_ns": 21545085,
+                "inclusive_ns": 930988082
+              },
+              "directory_sync_setup.snapshot": {
+                "calls": 4,
+                "exclusive_ns": 241289,
+                "inclusive_ns": 11533791
+              },
+              "fastcdc": {
+                "calls": 823,
+                "exclusive_ns": 40630921,
+                "inclusive_ns": 53900508
+              },
+              "file_fsync.chunk": {
+                "calls": 567,
+                "exclusive_ns": 2050526406,
+                "inclusive_ns": 2050526406
+              },
+              "file_fsync.manifest": {
+                "calls": 256,
+                "exclusive_ns": 962904119,
+                "inclusive_ns": 962904119
+              },
+              "file_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 3727917,
+                "inclusive_ns": 3727917
+              },
+              "file_fsync.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 3973416,
+                "inclusive_ns": 3973416
+              },
+              "file_fsync.tree": {
+                "calls": 1,
+                "exclusive_ns": 3769166,
+                "inclusive_ns": 3769166
+              },
+              "file_ingest": {
+                "calls": 256,
+                "exclusive_ns": 7407309,
+                "inclusive_ns": 2724353973
+              },
+              "flush.chunk": {
+                "calls": 567,
+                "exclusive_ns": 29008,
+                "inclusive_ns": 29008
+              },
+              "flush.manifest": {
+                "calls": 256,
+                "exclusive_ns": 12787,
+                "inclusive_ns": 12787
+              },
+              "flush.other": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 84,
+                "inclusive_ns": 84
+              },
+              "flush.tree": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "manifest_persistence": {
+                "calls": 256,
+                "exclusive_ns": 3560178,
+                "inclusive_ns": 1166220209
+              },
+              "merkle_persistence": {
+                "calls": 1,
+                "exclusive_ns": 117626,
+                "inclusive_ns": 5087958
+              },
+              "metadata_check.chunk": {
+                "calls": 1365,
+                "exclusive_ns": 18125907,
+                "inclusive_ns": 18125907
+              },
+              "metadata_check.manifest": {
+                "calls": 512,
+                "exclusive_ns": 8207965,
+                "inclusive_ns": 8207965
+              },
+              "metadata_check.other": {
+                "calls": 2,
+                "exclusive_ns": 2250,
+                "inclusive_ns": 2250
+              },
+              "metadata_check.snapshot": {
+                "calls": 3,
+                "exclusive_ns": 71041,
+                "inclusive_ns": 71041
+              },
+              "metadata_check.tree": {
+                "calls": 4,
+                "exclusive_ns": 53334,
+                "inclusive_ns": 53334
+              },
+              "no_clobber_publish.chunk": {
+                "calls": 567,
+                "exclusive_ns": 212142983,
+                "inclusive_ns": 212142983
+              },
+              "no_clobber_publish.manifest": {
+                "calls": 256,
+                "exclusive_ns": 96242077,
+                "inclusive_ns": 96242077
+              },
+              "no_clobber_publish.other": {
+                "calls": 1,
+                "exclusive_ns": 117291,
+                "inclusive_ns": 117291
+              },
+              "no_clobber_publish.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 509417,
+                "inclusive_ns": 509417
+              },
+              "no_clobber_publish.tree": {
+                "calls": 1,
+                "exclusive_ns": 459375,
+                "inclusive_ns": 459375
+              },
+              "publish_setup_cleanup.chunk": {
+                "calls": 567,
+                "exclusive_ns": 22724813,
+                "inclusive_ns": 2539710996
+              },
+              "publish_setup_cleanup.manifest": {
+                "calls": 256,
+                "exclusive_ns": 10643829,
+                "inclusive_ns": 1155862617
+              },
+              "publish_setup_cleanup.other": {
+                "calls": 1,
+                "exclusive_ns": 38168,
+                "inclusive_ns": 7825125
+              },
+              "publish_setup_cleanup.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 50584,
+                "inclusive_ns": 8442375
+              },
+              "publish_setup_cleanup.tree": {
+                "calls": 1,
+                "exclusive_ns": 54626,
+                "inclusive_ns": 4902583
+              },
+              "snapshot_publication": {
+                "calls": 1,
+                "exclusive_ns": 1009999,
+                "inclusive_ns": 17963583
+              },
+              "source_read": {
+                "calls": 512,
+                "exclusive_ns": 13269587,
+                "inclusive_ns": 13269587
+              },
+              "stored_object_read.chunk": {
+                "calls": 567,
+                "exclusive_ns": 577234,
+                "inclusive_ns": 12579286
+              },
+              "stored_object_read.manifest": {
+                "calls": 256,
+                "exclusive_ns": 267864,
+                "inclusive_ns": 6055621
+              },
+              "stored_object_read.other": {
+                "calls": 1,
+                "exclusive_ns": 626,
+                "inclusive_ns": 1834
+              },
+              "stored_object_read.tree": {
+                "calls": 1,
+                "exclusive_ns": 666,
+                "inclusive_ns": 31416
+              },
+              "tempfile_create.chunk": {
+                "calls": 567,
+                "exclusive_ns": 119212498,
+                "inclusive_ns": 119212498
+              },
+              "tempfile_create.manifest": {
+                "calls": 256,
+                "exclusive_ns": 55291965,
+                "inclusive_ns": 55291965
+              },
+              "tempfile_create.other": {
+                "calls": 1,
+                "exclusive_ns": 50458,
+                "inclusive_ns": 50458
+              },
+              "tempfile_create.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 243000,
+                "inclusive_ns": 243000
+              },
+              "tempfile_create.tree": {
+                "calls": 1,
+                "exclusive_ns": 147500,
+                "inclusive_ns": 147500
+              },
+              "traversal": {
+                "calls": 1,
+                "exclusive_ns": 18942235,
+                "inclusive_ns": 3914604375
+              }
+            },
+            "unclosed_scopes": 0
+          }
+        },
+        {
+          "phase": "unchanged",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.1290965419902932,
+            "native_real_seconds": 0.12,
+            "cpu_user_seconds": 0.06,
+            "cpu_system_seconds": 0.02,
+            "peak_rss_bytes": 2654208,
+            "native_time_output": "        0.12 real         0.06 user         0.02 sys\n             2654208  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 332  page reclaims\n                  17  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  19  voluntary context switches\n                   7  involuntary context switches\n          1062285932  instructions retired\n           316352451  cycles elapsed\n             1884376  peak memory footprint\n"
+          },
+          "root": "25f223948daa7b1a014204dad15593c4300454c4db892a06c9c42b934a7760cd",
+          "chunk_store": {
+            "objects": 567,
+            "payload_bytes": 33554432
+          },
+          "profile": {
+            "counters": {
+              "chunk_bytes": 33554432,
+              "chunks": 567,
+              "data_bytes_written.other": 18,
+              "data_bytes_written.snapshot": 373,
+              "hashed_bytes.chunk": 67108864,
+              "hashed_bytes.manifest": 103604,
+              "hashed_bytes.tree": 73834,
+              "nonce_tempfiles": 1,
+              "published.other": 1,
+              "published.snapshot": 1,
+              "source_bytes_read": 33554432,
+              "verified_reuse.chunk": 567,
+              "verified_reuse.manifest": 256,
+              "verified_reuse.tree": 1
+            },
+            "timings": {
+              "blake3.chunk": {
+                "calls": 1134,
+                "exclusive_ns": 33354809,
+                "inclusive_ns": 33354809
+              },
+              "blake3.manifest": {
+                "calls": 256,
+                "exclusive_ns": 162220,
+                "inclusive_ns": 162220
+              },
+              "blake3.tree": {
+                "calls": 2,
+                "exclusive_ns": 31333,
+                "inclusive_ns": 31333
+              },
+              "blake3_file": {
+                "calls": 823,
+                "exclusive_ns": 16818246,
+                "inclusive_ns": 16818246
+              },
+              "capture_total": {
+                "calls": 1,
+                "exclusive_ns": 175956,
+                "inclusive_ns": 117865416
+              },
+              "chunk_store": {
+                "calls": 567,
+                "exclusive_ns": 425567,
+                "inclusive_ns": 46854736
+              },
+              "chunk_verify": {
+                "calls": 567,
+                "exclusive_ns": 379306,
+                "inclusive_ns": 29768534
+              },
+              "data_write.other": {
+                "calls": 1,
+                "exclusive_ns": 49166,
+                "inclusive_ns": 49166
+              },
+              "data_write.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 28667,
+                "inclusive_ns": 28667
+              },
+              "directory_check_create.other": {
+                "calls": 1,
+                "exclusive_ns": 417,
+                "inclusive_ns": 2042
+              },
+              "directory_check_create.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 417,
+                "inclusive_ns": 5459
+              },
+              "directory_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 4286959,
+                "inclusive_ns": 4286959
+              },
+              "directory_fsync.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 6927459,
+                "inclusive_ns": 6927459
+              },
+              "directory_sync_setup.other": {
+                "calls": 1,
+                "exclusive_ns": 18166,
+                "inclusive_ns": 4305125
+              },
+              "directory_sync_setup.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 31166,
+                "inclusive_ns": 6958625
+              },
+              "fastcdc": {
+                "calls": 823,
+                "exclusive_ns": 11780651,
+                "inclusive_ns": 14012515
+              },
+              "file_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 15052750,
+                "inclusive_ns": 15052750
+              },
+              "file_fsync.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 4296500,
+                "inclusive_ns": 4296500
+              },
+              "file_ingest": {
+                "calls": 256,
+                "exclusive_ns": 989972,
+                "inclusive_ns": 78675469
+              },
+              "flush.other": {
+                "calls": 1,
+                "exclusive_ns": 42,
+                "inclusive_ns": 42
+              },
+              "flush.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "manifest_persistence": {
+                "calls": 256,
+                "exclusive_ns": 366903,
+                "inclusive_ns": 4427918
+              },
+              "merkle_persistence": {
+                "calls": 1,
+                "exclusive_ns": 154375,
+                "inclusive_ns": 203625
+              },
+              "metadata_check.chunk": {
+                "calls": 1134,
+                "exclusive_ns": 1371840,
+                "inclusive_ns": 1371840
+              },
+              "metadata_check.manifest": {
+                "calls": 512,
+                "exclusive_ns": 631778,
+                "inclusive_ns": 631778
+              },
+              "metadata_check.other": {
+                "calls": 2,
+                "exclusive_ns": 7292,
+                "inclusive_ns": 7292
+              },
+              "metadata_check.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 5042,
+                "inclusive_ns": 5042
+              },
+              "metadata_check.tree": {
+                "calls": 2,
+                "exclusive_ns": 3250,
+                "inclusive_ns": 3250
+              },
+              "no_clobber_publish.other": {
+                "calls": 1,
+                "exclusive_ns": 172000,
+                "inclusive_ns": 172000
+              },
+              "no_clobber_publish.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 127833,
+                "inclusive_ns": 127833
+              },
+              "publish_setup_cleanup.other": {
+                "calls": 1,
+                "exclusive_ns": 24376,
+                "inclusive_ns": 19706459
+              },
+              "publish_setup_cleanup.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 19500,
+                "inclusive_ns": 7845542
+              },
+              "snapshot_publication": {
+                "calls": 1,
+                "exclusive_ns": 302124,
+                "inclusive_ns": 11775583
+              },
+              "source_read": {
+                "calls": 512,
+                "exclusive_ns": 2231864,
+                "inclusive_ns": 2231864
+              },
+              "stored_object_read.chunk": {
+                "calls": 567,
+                "exclusive_ns": 11323214,
+                "inclusive_ns": 12695054
+              },
+              "stored_object_read.manifest": {
+                "calls": 256,
+                "exclusive_ns": 3267017,
+                "inclusive_ns": 3898795
+              },
+              "stored_object_read.other": {
+                "calls": 1,
+                "exclusive_ns": 1542,
+                "inclusive_ns": 7209
+              },
+              "stored_object_read.tree": {
+                "calls": 1,
+                "exclusive_ns": 14667,
+                "inclusive_ns": 17917
+              },
+              "tempfile_create.other": {
+                "calls": 1,
+                "exclusive_ns": 100958,
+                "inclusive_ns": 100958
+              },
+              "tempfile_create.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 36875,
+                "inclusive_ns": 36875
+              },
+              "traversal": {
+                "calls": 1,
+                "exclusive_ns": 2893197,
+                "inclusive_ns": 86200209
+              }
+            },
+            "unclosed_scopes": 0
+          }
+        },
+        {
+          "phase": "modified",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.11690154200186953,
+            "native_real_seconds": 0.11,
+            "cpu_user_seconds": 0.05,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 3538944,
+            "native_time_output": "        0.11 real         0.05 user         0.01 sys\n             3538944  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 403  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  39  voluntary context switches\n                   6  involuntary context switches\n          1062027299  instructions retired\n           315759036  cycles elapsed\n             2818312  peak memory footprint\n"
+          },
+          "root": "725832bf1decf23d529d27f59b2c358d4ef48c0e92fdccf1edca96d40567e859",
+          "chunk_store": {
+            "objects": 568,
+            "payload_bytes": 33678612
+          },
+          "profile": {
+            "counters": {
+              "chunk_bytes": 33554432,
+              "chunks": 567,
+              "data_bytes_written.chunk": 124180,
+              "data_bytes_written.manifest": 385,
+              "data_bytes_written.other": 18,
+              "data_bytes_written.snapshot": 373,
+              "data_bytes_written.tree": 36917,
+              "directories_created.tree": 1,
+              "hashed_bytes.chunk": 66984684,
+              "hashed_bytes.manifest": 103604,
+              "hashed_bytes.tree": 36917,
+              "lookup_missing.chunk": 1,
+              "lookup_missing.manifest": 1,
+              "lookup_missing.tree": 1,
+              "nonce_tempfiles": 1,
+              "published.chunk": 1,
+              "published.manifest": 1,
+              "published.other": 1,
+              "published.snapshot": 1,
+              "published.tree": 1,
+              "source_bytes_read": 33554432,
+              "verified_reuse.chunk": 566,
+              "verified_reuse.manifest": 255
+            },
+            "timings": {
+              "blake3.chunk": {
+                "calls": 1133,
+                "exclusive_ns": 26726972,
+                "inclusive_ns": 26726972
+              },
+              "blake3.manifest": {
+                "calls": 256,
+                "exclusive_ns": 122368,
+                "inclusive_ns": 122368
+              },
+              "blake3.tree": {
+                "calls": 1,
+                "exclusive_ns": 14708,
+                "inclusive_ns": 14708
+              },
+              "blake3_file": {
+                "calls": 823,
+                "exclusive_ns": 13457069,
+                "inclusive_ns": 13457069
+              },
+              "capture_total": {
+                "calls": 1,
+                "exclusive_ns": 106709,
+                "inclusive_ns": 112919417
+              },
+              "chunk_store": {
+                "calls": 567,
+                "exclusive_ns": 361409,
+                "inclusive_ns": 41968011
+              },
+              "chunk_verify": {
+                "calls": 567,
+                "exclusive_ns": 322702,
+                "inclusive_ns": 23707318
+              },
+              "data_write.chunk": {
+                "calls": 1,
+                "exclusive_ns": 39583,
+                "inclusive_ns": 39583
+              },
+              "data_write.manifest": {
+                "calls": 1,
+                "exclusive_ns": 33167,
+                "inclusive_ns": 33167
+              },
+              "data_write.other": {
+                "calls": 1,
+                "exclusive_ns": 182250,
+                "inclusive_ns": 182250
+              },
+              "data_write.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 22167,
+                "inclusive_ns": 22167
+              },
+              "data_write.tree": {
+                "calls": 1,
+                "exclusive_ns": 34542,
+                "inclusive_ns": 34542
+              },
+              "directory_check_create.chunk": {
+                "calls": 1,
+                "exclusive_ns": 292,
+                "inclusive_ns": 1583
+              },
+              "directory_check_create.manifest": {
+                "calls": 1,
+                "exclusive_ns": 167,
+                "inclusive_ns": 1042
+              },
+              "directory_check_create.other": {
+                "calls": 1,
+                "exclusive_ns": 292,
+                "inclusive_ns": 1250
+              },
+              "directory_check_create.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 458,
+                "inclusive_ns": 4000
+              },
+              "directory_check_create.tree": {
+                "calls": 2,
+                "exclusive_ns": 48624,
+                "inclusive_ns": 52416
+              },
+              "directory_fsync.other": {
+                "calls": 7,
+                "exclusive_ns": 13569958,
+                "inclusive_ns": 13569958
+              },
+              "directory_fsync.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 7666167,
+                "inclusive_ns": 7666167
+              },
+              "directory_sync_setup.other": {
+                "calls": 7,
+                "exclusive_ns": 97000,
+                "inclusive_ns": 13666958
+              },
+              "directory_sync_setup.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 31792,
+                "inclusive_ns": 7697959
+              },
+              "fastcdc": {
+                "calls": 823,
+                "exclusive_ns": 9452119,
+                "inclusive_ns": 11211493
+              },
+              "file_fsync.chunk": {
+                "calls": 1,
+                "exclusive_ns": 4331000,
+                "inclusive_ns": 4331000
+              },
+              "file_fsync.manifest": {
+                "calls": 1,
+                "exclusive_ns": 4699625,
+                "inclusive_ns": 4699625
+              },
+              "file_fsync.other": {
+                "calls": 1,
+                "exclusive_ns": 4645834,
+                "inclusive_ns": 4645834
+              },
+              "file_fsync.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 3732708,
+                "inclusive_ns": 3732708
+              },
+              "file_fsync.tree": {
+                "calls": 1,
+                "exclusive_ns": 3762083,
+                "inclusive_ns": 3762083
+              },
+              "file_ingest": {
+                "calls": 256,
+                "exclusive_ns": 799626,
+                "inclusive_ns": 67436199
+              },
+              "flush.chunk": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.manifest": {
+                "calls": 1,
+                "exclusive_ns": 42,
+                "inclusive_ns": 42
+              },
+              "flush.other": {
+                "calls": 1,
+                "exclusive_ns": 42,
+                "inclusive_ns": 42
+              },
+              "flush.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "flush.tree": {
+                "calls": 1,
+                "exclusive_ns": 0,
+                "inclusive_ns": 0
+              },
+              "manifest_persistence": {
+                "calls": 256,
+                "exclusive_ns": 298084,
+                "inclusive_ns": 8496580
+              },
+              "merkle_persistence": {
+                "calls": 1,
+                "exclusive_ns": 32958,
+                "inclusive_ns": 4062583
+              },
+              "metadata_check.chunk": {
+                "calls": 1134,
+                "exclusive_ns": 1128795,
+                "inclusive_ns": 1128795
+              },
+              "metadata_check.manifest": {
+                "calls": 512,
+                "exclusive_ns": 573087,
+                "inclusive_ns": 573087
+              },
+              "metadata_check.other": {
+                "calls": 2,
+                "exclusive_ns": 1958,
+                "inclusive_ns": 1958
+              },
+              "metadata_check.snapshot": {
+                "calls": 2,
+                "exclusive_ns": 3542,
+                "inclusive_ns": 3542
+              },
+              "metadata_check.tree": {
+                "calls": 3,
+                "exclusive_ns": 10167,
+                "inclusive_ns": 10167
+              },
+              "no_clobber_publish.chunk": {
+                "calls": 1,
+                "exclusive_ns": 108875,
+                "inclusive_ns": 108875
+              },
+              "no_clobber_publish.manifest": {
+                "calls": 1,
+                "exclusive_ns": 94083,
+                "inclusive_ns": 94083
+              },
+              "no_clobber_publish.other": {
+                "calls": 1,
+                "exclusive_ns": 89541,
+                "inclusive_ns": 89541
+              },
+              "no_clobber_publish.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 78792,
+                "inclusive_ns": 78792
+              },
+              "no_clobber_publish.tree": {
+                "calls": 1,
+                "exclusive_ns": 102542,
+                "inclusive_ns": 102542
+              },
+              "publish_setup_cleanup.chunk": {
+                "calls": 1,
+                "exclusive_ns": 10750,
+                "inclusive_ns": 4546666
+              },
+              "publish_setup_cleanup.manifest": {
+                "calls": 1,
+                "exclusive_ns": 10582,
+                "inclusive_ns": 4889208
+              },
+              "publish_setup_cleanup.other": {
+                "calls": 1,
+                "exclusive_ns": 26291,
+                "inclusive_ns": 8816583
+              },
+              "publish_setup_cleanup.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 22833,
+                "inclusive_ns": 7837458
+              },
+              "publish_setup_cleanup.tree": {
+                "calls": 1,
+                "exclusive_ns": 9958,
+                "inclusive_ns": 4006750
+              },
+              "snapshot_publication": {
+                "calls": 1,
+                "exclusive_ns": 223583,
+                "inclusive_ns": 11888292
+              },
+              "source_read": {
+                "calls": 512,
+                "exclusive_ns": 1759374,
+                "inclusive_ns": 1759374
+              },
+              "stored_object_read.chunk": {
+                "calls": 567,
+                "exclusive_ns": 8882758,
+                "inclusive_ns": 10010262
+              },
+              "stored_object_read.manifest": {
+                "calls": 256,
+                "exclusive_ns": 2614708,
+                "inclusive_ns": 3186920
+              },
+              "stored_object_read.other": {
+                "calls": 1,
+                "exclusive_ns": 458,
+                "inclusive_ns": 1458
+              },
+              "stored_object_read.tree": {
+                "calls": 1,
+                "exclusive_ns": 167,
+                "inclusive_ns": 8167
+              },
+              "tempfile_create.chunk": {
+                "calls": 1,
+                "exclusive_ns": 54875,
+                "inclusive_ns": 54875
+              },
+              "tempfile_create.manifest": {
+                "calls": 1,
+                "exclusive_ns": 50667,
+                "inclusive_ns": 50667
+              },
+              "tempfile_create.other": {
+                "calls": 1,
+                "exclusive_ns": 50000,
+                "inclusive_ns": 50000
+              },
+              "tempfile_create.snapshot": {
+                "calls": 1,
+                "exclusive_ns": 106250,
+                "inclusive_ns": 106250
+              },
+              "tempfile_create.tree": {
+                "calls": 1,
+                "exclusive_ns": 46834,
+                "inclusive_ns": 46834
+              },
+              "traversal": {
+                "calls": 1,
+                "exclusive_ns": 2265430,
+                "inclusive_ns": 82260792
+              }
+            },
+            "unclosed_scopes": 0
+          }
+        }
+      ],
+      "optimized": [
+        {
+          "phase": "fresh",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 4.883873459009919,
+            "native_real_seconds": 4.88,
+            "cpu_user_seconds": 0.16,
+            "cpu_system_seconds": 0.75,
+            "peak_rss_bytes": 7503872,
+            "native_time_output": "        4.88 real         0.16 user         0.75 sys\n             7503872  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 644  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                4045  voluntary context switches\n                 726  involuntary context switches\n          2560985124  instructions retired\n          1345696170  cycles elapsed\n             6980112  peak memory footprint\n"
+          },
+          "root": "25f223948daa7b1a014204dad15593c4300454c4db892a06c9c42b934a7760cd",
+          "chunk_store": {
+            "objects": 567,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "unchanged",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.11545416599255987,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.06,
+            "cpu_system_seconds": 0.02,
+            "peak_rss_bytes": 2572288,
+            "native_time_output": "        0.10 real         0.06 user         0.02 sys\n             2572288  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 327  page reclaims\n                  16  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  19  voluntary context switches\n                   4  involuntary context switches\n          1036249083  instructions retired\n           311390996  cycles elapsed\n             1835224  peak memory footprint\n"
+          },
+          "root": "25f223948daa7b1a014204dad15593c4300454c4db892a06c9c42b934a7760cd",
+          "chunk_store": {
+            "objects": 567,
+            "payload_bytes": 33554432
+          }
+        },
+        {
+          "phase": "modified",
+          "metrics": {
+            "command": [
+              "rewind",
+              "snapshot",
+              "source"
+            ],
+            "elapsed_seconds": 0.11194199998863041,
+            "native_real_seconds": 0.1,
+            "cpu_user_seconds": 0.05,
+            "cpu_system_seconds": 0.01,
+            "peak_rss_bytes": 3489792,
+            "native_time_output": "        0.10 real         0.05 user         0.01 sys\n             3489792  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n                 399  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  38  voluntary context switches\n                   7  involuntary context switches\n          1035534270  instructions retired\n           310076190  cycles elapsed\n             2801952  peak memory footprint\n"
+          },
+          "root": "725832bf1decf23d529d27f59b2c358d4ef48c0e92fdccf1edca96d40567e859",
+          "chunk_store": {
+            "objects": 568,
+            "payload_bytes": 33678612
+          }
+        }
+      ]
+    }
+  ],
+  "engine_source_unchanged": true
+}

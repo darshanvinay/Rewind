@@ -23,7 +23,7 @@ edit('main.rs','    match result {','    if let Err(error) = rewind::profile::fi
 edit('hashing.rs','pub fn hash(bytes: &[u8]) -> String {','pub fn hash(bytes: &[u8]) -> String {\n    let _profile = crate::profile::Scope::new(crate::profile::tag("blake3"));\n    crate::profile::event(crate::profile::tag("hashed_bytes"), bytes.len() as u64);')
 edit('storage.rs','pub(crate) fn sync_dir(path: &Path) -> Result<()> {','pub(crate) fn sync_dir(path: &Path) -> Result<()> {\n    let _profile = crate::profile::Scope::new(crate::profile::tag("directory_sync_setup"));')
 edit('storage.rs','    File::open(path)?.sync_all()?;','    { let directory = File::open(path)?; crate::profile::timed(crate::profile::tag("directory_fsync"), || directory.sync_all())?; }')
-edit('storage.rs','fn ensure_dir_with(path: &Path, sync: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {','fn ensure_dir_with(path: &Path, sync: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {\n    let _profile = crate::profile::Scope::new(crate::profile::tag("directory_check_create"));')
+edit('storage.rs','pub(crate) fn ensure_dir_with(\n    path: &Path,\n    sync: &mut impl FnMut(&Path) -> Result<()>,\n) -> Result<()> {','pub(crate) fn ensure_dir_with(\n    path: &Path,\n    sync: &mut impl FnMut(&Path) -> Result<()>,\n) -> Result<()> {\n    let _profile = crate::profile::Scope::new(crate::profile::tag("directory_check_create"));')
 edit('storage.rs','pub(crate) fn read_regular_file(path: &Path, limit: u64) -> Result<Vec<u8>> {','pub(crate) fn read_regular_file(path: &Path, limit: u64) -> Result<Vec<u8>> {\n    let _profile = crate::profile::Scope::new(crate::profile::tag("stored_object_read"));')
 edit('storage.rs','fs::symlink_metadata(path)', 'crate::profile::timed(crate::profile::tag("metadata_check"), || fs::symlink_metadata(path))',3)
 edit('storage.rs','let metadata = file.metadata()?;', 'let metadata = crate::profile::timed(crate::profile::tag("metadata_check"), || file.metadata())?;')
@@ -34,7 +34,7 @@ edit('storage.rs','    temp.write_all(bytes)?;', '    crate::profile::write_all(
 edit('storage.rs','    temp.flush()?;', '    crate::profile::timed(crate::profile::tag("flush"), || temp.flush())?;')
 edit('storage.rs','    temp.as_file().sync_all()?;', '    crate::profile::timed(crate::profile::tag("file_fsync"), || temp.as_file().sync_all())?;')
 edit('storage.rs','    match temp.persist_noclobber(path) {', '    match crate::profile::timed(crate::profile::tag("no_clobber_publish"), || temp.persist_noclobber(path)) {')
-edit('storage.rs','        Ok(_) => {\n            sync_dir(parent)?;', '        Ok(_) => {\n            crate::profile::event(crate::profile::tag("published"), 1);\n            sync_dir(parent)?;')
+edit('storage.rs','        Ok(_) => {\n            sync(parent)?;', '        Ok(_) => {\n            crate::profile::event(crate::profile::tag("published"), 1);\n            sync(parent)?;')
 edit('storage.rs','        Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),', '        Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => { crate::profile::event(crate::profile::tag("already_exists"), 1); Ok(false) },')
 edit('storage.rs','    pub fn put(&self, data: &[u8]) -> Result<String> {', '    pub fn put(&self, data: &[u8]) -> Result<String> {\n        let _profile = crate::profile::Scope::new("chunk_store");')
 edit('storage.rs','    pub fn get(&self, id: &str) -> Result<Vec<u8>> {', '    pub fn get(&self, id: &str) -> Result<Vec<u8>> {\n        let _profile = crate::profile::Scope::new("chunk_verify");')
@@ -49,7 +49,7 @@ edit('snapshot.rs',') -> Result<SnapshotRecord> {\n    #[cfg(unix)]',') -> Resul
 edit('snapshot.rs','        let timestamp = SystemTime::now()', '        let _publication = crate::profile::Scope::new("snapshot_publication");\n        let timestamp = SystemTime::now()')
 edit('snapshot.rs','        let mut hasher = blake3::Hasher::new();', '        crate::profile::event("nonce_tempfiles", 1);\n        let mut hasher = blake3::Hasher::new();')
 edit('snapshot.rs','        if depth > MAX_DEPTH {','        let _profile = crate::profile::Scope::new("traversal");\n        if depth > MAX_DEPTH {')
-# Support both the original engine and the verified-reuse optimization.
+# Instrument the current verified-reuse policy as well as publication.
 if 'pub(crate) fn publish_if_missing(' in (copy/'src/storage.rs').read_text():
  edit('storage.rs','        Ok(()) => return Ok(()),', '        Ok(()) => { crate::profile::event(crate::profile::tag("verified_reuse"), 1); return Ok(()); },')
  edit('storage.rs','        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => (),', '        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => crate::profile::event(crate::profile::tag("lookup_missing"), 1),')

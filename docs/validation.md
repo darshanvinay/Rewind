@@ -1,7 +1,10 @@
 # Phase 2 final validation — Milestone E
 
-**Current follow-up:** The subsequently approved verified-existing-object fast path
-passes 57 tests. See [implementation and before/after results](verified-reuse.md).
+**Current follow-up:** Capture directory batching, exclusive writer coordination and
+pending-marker recovery supersede the earlier performance follow-up. See
+[the protocol, current validation and paired measurements](capture-batching.md).
+The verified-existing-object fast path previously passed 57 tests; its
+[implementation and results](verified-reuse.md) remain a historical reference.
 The original 49-test Milestone E run and its measurements below are retained as a
 historical baseline, not current optimized capture timings.
 
@@ -238,3 +241,27 @@ source. [Verified reuse results](verified-reuse.md) contain the timing/count tab
 limits and reproduction command; [raw results](capture-profile-verified-reuse.json)
 retain CPU/RSS and stage data. No directory batching, concurrency, durability-mode
 change or Phase 3 feature was implemented.
+
+## Approved capture batching follow-up — 2026-11-10
+
+Formatting, Clippy (`-D warnings`), all **67 tests** (zero failures/ignored), locked
+release build and release CLI benchmark/restore checks passed. Capture now batches
+only directory syncs, with a complete object barrier before snapshot publication.
+An advisory OS lock covers capture, recovery and standalone object mutations.
+A durably published versioned pending marker survives failures; recovery fails
+closed and flushes surviving directories/ancestors before clearing it or reusing
+objects. Existing BLAKE3 verification, file syncs and no-clobber publication remain.
+
+Three-trial fresh medians improved from 5.0897 to 3.1832 seconds (one 32 MiB file)
+and 8.3499 to 4.8142 seconds (256 files totaling 32 MiB). Unchanged medians regressed
+from 0.0923 to 0.1102 and 0.1092 to 0.1174 seconds; modified medians from 0.1079 to
+0.1137 and 0.1137 to 0.1169 seconds. Directory sync counts fell from 844/1,293 to
+220/241; required file syncs remain the dominant cost. The sub-second goal was not
+met. [Protocol, crash analysis, full timing/CPU/RSS tables and reproduction](capture-batching.md),
+[raw paired samples](capture-batch-benchmark.json) and
+[diagnostic profile](capture-batch-profile.json) retain the evidence.
+
+Failure injection, abrupt subprocess exit and SIGKILL validate process recovery,
+not actual power-loss behavior. macOS still uses sync_all rather than F_FULLFSYNC;
+trusted paths, advisory-lock participation and hardware/filesystem sync behavior
+remain prerequisites. No GC, packed log, parallel persistence or Phase 3 was added.

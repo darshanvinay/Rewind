@@ -128,7 +128,9 @@ Full restoration performs stronger verification. Listing checks records only.
   filesystem support for atomic no-replace directory rename. Only macOS has been
   tested. File commands and metadata/diff APIs use portable interfaces where
   possible; Windows/other platforms have not been validated.
-- Single writer is a caller contract; there is no lock or concurrent GC protocol.
+- Writers coordinate through a permanent advisory `writer.lock` file. Capture holds
+  it through recovery and commit; standalone mutations use the same lock. Older
+  binaries/external tools do not honor it. There is no concurrent GC protocol.
   Store contents and the destination parent must be trusted/stable. Rejecting
   symlink objects is not a complete defense against hostile ancestor/mount changes.
   User-supplied output-parent symlinks are resolved before staging.
@@ -150,12 +152,15 @@ Full restoration performs stronger verification. Listing checks records only.
 - Sync failure may be reported after an object or complete output is visible;
   an error does not guarantee rollback. Interrupted capture may leave unreferenced
   objects/tempfiles; restore may leave `.rewind-restore-*` stages. There is no
-  scavenger or power-loss guarantee. macOS uses `sync_all`, not F_FULLFSYNC.
+  scavenger or proven power-loss guarantee. Failed writes leave a durable pending
+  marker; the next writer repairs surviving namespace links before reuse. A failed
+  recovery barrier retains the marker and blocks writes. Never remove `writer.lock`
+  while in use. macOS uses `sync_all`, not F_FULLFSYNC.
 - No watchers, daemon, retention, GC, rename detection, or FUSE mounts exist yet.
 
 ## Evidence and next steps
 
-The current suite has 57 passing tests, zero failures/ignored tests on macOS, including
+The current suite has 67 passing tests, zero failures/ignored tests on macOS, including
 five property suites (92 cases) and a complete CLI workflow. Small release-build
 measurements record elapsed time, CPU time, peak RSS and chunk growth, without
 comparisons to other tools or universal speed claims.
@@ -165,7 +170,9 @@ and [architecture, review findings and proposed Phase 3](docs/architecture.md).
 The reproducible measurement harness is [scripts/measure_phase2.py](scripts/measure_phase2.py).
 Phase 3 is planned only; no monitoring or incremental tracking has been implemented.
 
-Verified-existing-object reuse is implemented without changing new-object sync
-policy. See [the optimization results](docs/verified-reuse.md) for safety regression
-tests, before/after timings and operation counts. Directory-sync batching and
-persistence concurrency remain unimplemented proposals.
+Verified-existing-object reuse retains BLAKE3 verification. Capture-only directory
+sync batching now uses an object durability barrier before snapshot publication,
+with exclusive writer coordination and durable pending-marker recovery. Standalone
+objects retain immediate durability. See [capture batching and measured results](docs/capture-batching.md)
+and [earlier verified reuse results](docs/verified-reuse.md). Persistence concurrency
+and Phase 3 remain unimplemented.

@@ -3,7 +3,7 @@ use crate::{
     Error, Result,
     chunking::ChunkSizes,
     hashing,
-    storage::{ChunkStore, publish, publish_if_missing, read_regular_file, sync_dir},
+    storage::{ChunkStore, publish_if_missing, read_regular_file, sync_dir},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -80,6 +80,7 @@ impl FileManifest {
     }
     /// Publish serialized JSON under its content identity without replacement.
     pub fn save(&self, store: &ChunkStore) -> Result<PathBuf> {
+        let writer = store.writer()?;
         self.validate()?;
         let bytes = serde_json::to_vec(self)?;
         if bytes.len() > 64 * 1024 * 1024 {
@@ -98,8 +99,9 @@ impl FileManifest {
                 }
                 Ok(())
             },
-            || publish(&path, &bytes),
+            || store.publish_object(&path, &bytes),
         )?;
+        writer.finish()?;
         Ok(path)
     }
 }

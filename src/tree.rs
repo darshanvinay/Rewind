@@ -1,7 +1,7 @@
 //! Immutable directory recipes. This module does not traverse the filesystem.
 use crate::{
     Error, Result, hashing,
-    storage::{ChunkStore, publish, publish_if_missing, read_regular_file},
+    storage::{ChunkStore, publish_if_missing, read_regular_file},
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -156,13 +156,15 @@ impl DirectoryNode {
     /// Publish a node without replacing an existing object. References are not
     /// traversed here; callers must persist children before publishing a snapshot.
     pub fn save(&self, store: &ChunkStore) -> Result<String> {
+        let writer = store.writer()?;
         let bytes = self.canonical_bytes()?;
         let hash = hashing::hash(&bytes);
         let path = node_path(store, &hash)?;
         publish_if_missing(
             || Self::load(store, &hash).map(|_| ()),
-            || publish(&path, &bytes),
+            || store.publish_object(&path, &bytes),
         )?;
+        writer.finish()?;
         Ok(hash)
     }
 

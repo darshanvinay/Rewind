@@ -67,7 +67,7 @@ def run_case(binary, work, payload, files, instrumented):
                 published = sum(v for k, v in detail["counters"].items() if k.startswith("published."))
                 assert writes == synced == published
                 if phase == "unchanged":
-                    assert writes == 1 and detail["counters"]["verified_reuse.chunk"] == detail["counters"]["chunks"]
+                    assert writes == 2 and detail["counters"]["verified_reuse.chunk"] == detail["counters"]["chunks"]
             item["profile"] = detail
         stages.append(item)
         ids.append(identifier)

@@ -120,7 +120,7 @@ pub fn list_snapshots(store: &ChunkStore) -> Result<Vec<SnapshotRecord>> {
 /// Capture regular files and directories with a full traversal. Reject symlinks,
 /// special files, unsupported names, store roots, and depth beyond 256 levels.
 /// The actual store is excluded by filesystem identity if nested in the source.
-/// Single writer and a trusted store are required. No point-in-time consistency
+/// Writers are serialized by an advisory lock; a trusted store is required. No point-in-time consistency
 /// with concurrent source edits is provided. Unix uses descriptor-relative reads;
 /// other platforms return an explicit unsupported error without writing anything.
 pub fn create_snapshot(
@@ -147,7 +147,7 @@ mod unix {
         chunking::ChunkSizes,
         hashing,
         manifest::store_open_file,
-        storage::{ensure_dir, publish},
+        storage::ensure_dir,
         tree::{DirectoryEntry, DirectoryNode, EntryTarget, validate_name},
     };
     use rustix::fs::{self as rfs, AtFlags, Dir, FileType, Mode, OFlags};
@@ -200,10 +200,11 @@ mod unix {
                 "cannot snapshot the store or a directory inside it".into(),
             ));
         }
-        let store = ChunkStore::open(store_path)?;
+        let store = ChunkStore::open(store_path)?.begin_capture()?;
         let store_meta = fs::metadata(store.root())?;
         let identity = (store_meta.dev(), store_meta.ino());
         let root_hash = capture_directory(&store, &root, &source, identity, 0)?;
+        store.object_barrier()?;
 
         // Only now create/publish history metadata. Failed captures may leave
         // unreferenced objects, but no committed record pointing to partial work.
@@ -242,13 +243,14 @@ mod unix {
         if bytes.len() > MAX_RECORD_BYTES {
             return Err(Error::Invalid("snapshot record exceeds 64 KiB".into()));
         }
-        if !publish(&records.join(format!("{}.json", record.id)), &bytes)? {
+        if !store.publish_snapshot(&records.join(format!("{}.json", record.id)), &bytes)? {
             return Err(Error::Invalid(
                 "snapshot ID collision; retry capture".into(),
             ));
         }
         // Report cleanup failure accurately; the record may already be visible.
         nonce.close()?;
+        store.finish_capture()?;
         Ok(record)
     }
 

@@ -1,5 +1,9 @@
 # Verified existing-object reuse
 
+Historical report: [capture batching](capture-batching.md) now adds writer locking,
+pending-marker recovery and capture-only directory barriers. The timings and sync
+policy below describe the earlier release, retained as the comparison baseline.
+
 The approved fast path is implemented for immutable chunks, file manifests and
 directory Merkle nodes. Snapshot records remain unique new durable writes.
 No format, public API, synchronization policy, watcher or Phase 3 feature changed.
