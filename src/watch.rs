@@ -1,5 +1,6 @@
 //! Native event logging only. No capture or storage mutation is performed here.
-use crate::{ChunkStore, Error, Result};
+pub use crate::debounce::DebounceConfig;
+use crate::{ChunkStore, Error, Result, debounce::Debouncer};
 use notify::{
     Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
     event::{ModifyKind, RenameMode},
@@ -11,8 +12,9 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, Receiver, SyncSender, TrySendError},
+        mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError},
     },
+    time::Instant,
 };
 
 const QUEUE_CAPACITY: usize = 1024;
@@ -43,6 +45,18 @@ impl StopHandle {
 pub struct NormalizedEvent {
     pub kind: &'static str,
     pub paths: Vec<String>,
+    pub tracker: Option<usize>,
+    pub reconciliation_reason: Option<&'static str>,
+}
+impl NormalizedEvent {
+    fn reconcile(reason: &'static str) -> Self {
+        Self {
+            kind: "reconcile",
+            paths: vec![],
+            tracker: None,
+            reconciliation_reason: Some(reason),
+        }
+    }
 }
 
 /// Owns the native watcher for the entire monitoring lifetime.
@@ -52,6 +66,7 @@ pub struct Monitor {
     receiver: Receiver<Message>,
     stop: StopHandle,
     overflow: Arc<AtomicBool>,
+    config: DebounceConfig,
     #[cfg(unix)]
     source: unix::Source,
 }
@@ -83,6 +98,13 @@ fn enqueue(sender: &SyncSender<Message>, overflow: &AtomicBool, event: notify::R
 
 impl Monitor {
     pub fn start(store: &ChunkStore, directory: impl AsRef<Path>) -> Result<Self> {
+        Self::start_with_config(store, directory, DebounceConfig::default())
+    }
+    pub fn start_with_config(
+        store: &ChunkStore,
+        directory: impl AsRef<Path>,
+        config: DebounceConfig,
+    ) -> Result<Self> {
         #[cfg(not(unix))]
         {
             let _ = (store, directory);
@@ -95,10 +117,14 @@ impl Monitor {
             let source = unix::Source::open(store, directory.as_ref())?;
             let (sender, receiver) = mpsc::sync_channel(QUEUE_CAPACITY);
             let overflow = Arc::new(AtomicBool::new(false));
+            let exclusion = source.storage_filter();
             let callback_sender = sender.clone();
             let callback_overflow = overflow.clone();
             let mut watcher = RecommendedWatcher::new(
-                move |event| {
+                move |event: notify::Result<Event>| {
+                    if event.as_ref().is_ok_and(|e| exclusion.matches(e)) {
+                        return;
+                    }
                     enqueue(&callback_sender, &callback_overflow, event);
                 },
                 notify::Config::default().with_follow_symlinks(false),
@@ -118,6 +144,7 @@ impl Monitor {
                 receiver,
                 stop,
                 overflow,
+                config,
                 source,
             })
         }
@@ -134,29 +161,67 @@ impl Monitor {
             writeln!(
                 output,
                 "{}",
-                serde_json::json!({"status":"watching", "root":self.source.root, "backend":format!("{:?}", RecommendedWatcher::kind())})
+                serde_json::json!({"status":"watching", "root":self.source.root, "backend":format!("{:?}", RecommendedWatcher::kind()), "debounce_ms":self.config.debounce_ms(), "max_delay_ms":self.config.max_delay_ms()})
             )?;
             output.flush()?;
+            let mut debounce = Debouncer::new(self.config);
             loop {
+                let now = Instant::now();
+                if self.overflow.swap(false, Ordering::AcqRel) {
+                    debounce.reconcile("queue_overflow_or_oversized_event", now);
+                }
                 if self.stop.stopped.load(Ordering::Relaxed) {
+                    // Do not claim queued hints were processed. Flush our bounded
+                    // accumulator, mark any remaining queue for future reconciliation.
+                    for _ in 0..QUEUE_CAPACITY {
+                        match self.receiver.try_recv() {
+                            Ok(Message::Event(_)) => {
+                                debounce.reconcile("shutdown_pending_events", now);
+                                break;
+                            }
+                            Ok(Message::Wake) => (),
+                            Err(_) => break,
+                        }
+                    }
+                    emit(&mut debounce, output)?;
                     break;
                 }
-                if self.overflow.load(Ordering::Relaxed) {
-                    return Err(Error::Invalid("watch queue overflow or oversized event; event history is incomplete; rescan/restart required".into()));
+                if debounce.deadline().is_some_and(|deadline| now >= deadline) {
+                    emit(&mut debounce, output)?;
+                    continue;
                 }
-                let message = self
-                    .receiver
-                    .recv()
-                    .map_err(|_| Error::Invalid("watch event channel disconnected".into()))?;
-                if self.stop.stopped.load(Ordering::Relaxed) {
-                    break;
-                }
+                let message = match debounce.deadline() {
+                    Some(deadline) => match self
+                        .receiver
+                        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                    {
+                        Ok(message) => message,
+                        Err(RecvTimeoutError::Timeout) => continue,
+                        Err(RecvTimeoutError::Disconnected) => {
+                            return Err(Error::Invalid("watch event channel disconnected".into()));
+                        }
+                    },
+                    None => self
+                        .receiver
+                        .recv()
+                        .map_err(|_| Error::Invalid("watch event channel disconnected".into()))?,
+                };
                 if let Message::Event(event) = message {
-                    let event = event.map_err(watch_error)?;
-                    if let Some(event) = self.source.normalize(event)? {
-                        serde_json::to_writer(&mut *output, &event)?;
-                        writeln!(output)?;
-                        output.flush()?;
+                    match event {
+                        Ok(event) => match self.source.normalize(event) {
+                            Ok(Some(event)) => debounce.push(event, Instant::now()),
+                            Ok(None) => (),
+                            Err(error) => {
+                                debounce.reconcile("validation_error", Instant::now());
+                                emit(&mut debounce, output)?;
+                                return Err(error);
+                            }
+                        },
+                        Err(error) => {
+                            debounce.reconcile("backend_error", Instant::now());
+                            emit(&mut debounce, output)?;
+                            return Err(watch_error(error));
+                        }
                     }
                 }
             }
@@ -165,6 +230,15 @@ impl Monitor {
         }
         Ok(())
     }
+}
+
+fn emit(debounce: &mut Debouncer, output: &mut impl Write) -> Result<()> {
+    if let Some(batch) = debounce.take() {
+        serde_json::to_writer(&mut *output, &batch)?;
+        writeln!(output)?;
+        output.flush()?;
+    }
+    Ok(())
 }
 
 fn watch_error(error: notify::Error) -> Error {
@@ -203,6 +277,22 @@ mod unix {
         identity: (u64, u64),
         store: PathBuf,
         store_identity: (u64, u64),
+    }
+    pub(super) struct StorageFilter {
+        path: PathBuf,
+        identity: (u64, u64),
+    }
+    impl StorageFilter {
+        pub fn matches(&self, event: &Event) -> bool {
+            !event.need_rescan()
+                && !event.paths.is_empty()
+                && event.paths.iter().all(|p| {
+                    !p.components().any(|c| matches!(c, Component::ParentDir))
+                        && p.starts_with(&self.path)
+                })
+                && fs::symlink_metadata(&self.path)
+                    .is_ok_and(|m| m.is_dir() && (m.dev(), m.ino()) == self.identity)
+        }
     }
     fn identity(file: &File) -> Result<(u64, u64)> {
         let m = file.metadata()?;
@@ -259,6 +349,12 @@ mod unix {
                 }
             }
             Ok(())
+        }
+        pub fn storage_filter(&self) -> StorageFilter {
+            StorageFilter {
+                path: self.store.clone(),
+                identity: self.store_identity,
+            }
         }
         pub fn validate(&self) -> Result<()> {
             self.check_roots()?;
@@ -355,35 +451,35 @@ mod unix {
             Ok(true)
         }
         pub fn normalize(&self, event: Event) -> Result<Option<NormalizedEvent>> {
+            self.check_roots()?;
             if event.need_rescan() {
-                return Err(Error::Invalid(
-                    "watch backend reported lost events; rescan/restart required".into(),
-                ));
+                return Ok(Some(NormalizedEvent::reconcile("backend_rescan")));
             }
             // Access/read notifications are not content-change hints.
             if matches!(event.kind, EventKind::Access(_)) {
                 return Ok(None);
             }
-            self.check_roots()?;
             if event.paths.is_empty() {
-                return Err(Error::Invalid(
-                    "watch event has no paths; rescan/restart required".into(),
-                ));
+                return Ok(Some(NormalizedEvent::reconcile("missing_paths")));
             }
+            let tracker = event.tracker();
+            let paired = matches!(
+                event.kind,
+                EventKind::Modify(ModifyKind::Name(RenameMode::Both))
+            ) && event.paths.len() == 2;
             let mut paths = Vec::new();
-            for path in event.paths {
+            let mut endpoints = Vec::new();
+            for (index, path) in event.paths.into_iter().enumerate() {
                 if !path.is_absolute()
                     || path.components().any(|c| matches!(c, Component::ParentDir))
                 {
-                    return Err(Error::Invalid(
-                        "unresolvable watch event path; rescan/restart required".into(),
-                    ));
+                    return Ok(Some(NormalizedEvent::reconcile("unresolvable_path")));
                 }
                 // The registered root is canonical; deleted paths cannot themselves
                 // be canonicalized. Canonical prefixes anchor their lexical suffixes.
-                let relative = path.strip_prefix(&self.root).map_err(|_| {
-                    Error::Invalid("watch event outside registered root; restart required".into())
-                })?;
+                let Ok(relative) = path.strip_prefix(&self.root) else {
+                    return Ok(Some(NormalizedEvent::reconcile("unresolvable_path")));
+                };
                 if path.starts_with(&self.store) {
                     continue;
                 }
@@ -403,14 +499,23 @@ mod unix {
                 };
                 if !paths.contains(&relative) {
                     paths.push(relative);
+                    endpoints.push(index);
                 }
             }
             if paths.is_empty() {
                 return Ok(None);
             }
             Ok(Some(NormalizedEvent {
-                kind: kind(event.kind),
+                kind: if paired && endpoints == [0] {
+                    "rename-from"
+                } else if paired && endpoints == [1] {
+                    "rename-to"
+                } else {
+                    kind(event.kind)
+                },
                 paths,
+                tracker,
+                reconciliation_reason: None,
             }))
         }
     }
@@ -437,7 +542,20 @@ mod unix {
             let event = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
                 .add_path(source.store.join("before"))
                 .add_path(source.root.join("after"));
-            assert_eq!(source.normalize(event).unwrap().unwrap().paths, ["after"]);
+            let filtered = source.normalize(event).unwrap().unwrap();
+            assert_eq!(filtered.paths, ["after"]);
+            assert_eq!(filtered.kind, "rename-to");
+            let filter = source.storage_filter();
+            assert!(
+                filter.matches(&Event::new(EventKind::Any).add_path(source.store.join("chunk")))
+            );
+            assert!(
+                !filter.matches(
+                    &Event::new(EventKind::Any)
+                        .set_flag(notify::event::Flag::Rescan)
+                        .add_path(source.store.join("chunk"))
+                )
+            );
             assert!(
                 source
                     .normalize(Event::new(EventKind::Any).add_path(source.store.join("deleted")))
@@ -459,9 +577,19 @@ mod unix {
             assert!(
                 source
                     .normalize(Event::new(EventKind::Any).set_flag(Flag::Rescan))
-                    .is_err()
+                    .unwrap()
+                    .unwrap()
+                    .reconciliation_reason
+                    .is_some()
             );
-            assert!(source.normalize(Event::new(EventKind::Any)).is_err());
+            assert!(
+                source
+                    .normalize(Event::new(EventKind::Any))
+                    .unwrap()
+                    .unwrap()
+                    .reconciliation_reason
+                    .is_some()
+            );
             for path in [
                 PathBuf::from("relative"),
                 source.root.join("../escape"),
@@ -470,7 +598,10 @@ mod unix {
                 assert!(
                     source
                         .normalize(Event::new(EventKind::Any).add_path(path))
-                        .is_err()
+                        .unwrap()
+                        .unwrap()
+                        .reconciliation_reason
+                        .is_some()
                 );
             }
             std::os::unix::fs::symlink("missing", source.root.join("link")).unwrap();
@@ -523,6 +654,81 @@ mod tests {
         enqueue(&sender, &overflow, Ok(event));
         assert!(overflow.load(Ordering::Relaxed));
     }
+    #[cfg(unix)]
+    #[test]
+    fn loss_emits_reconciliation_and_later_native_batches_keep_the_warning() {
+        use std::{fs, thread, time::Duration};
+        let temp = tempfile::tempdir().unwrap();
+        let store = ChunkStore::init(temp.path().join("store")).unwrap();
+        let source = temp.path().join("source");
+        fs::create_dir(&source).unwrap();
+        let monitor = Monitor::start_with_config(
+            &store,
+            &source,
+            DebounceConfig::from_millis(30, 100).unwrap(),
+        )
+        .unwrap();
+        monitor.overflow.store(true, Ordering::Relaxed);
+        monitor
+            .stop
+            .sender
+            .try_send(Message::Event(Ok(
+                Event::new(EventKind::Any).set_flag(notify::event::Flag::Rescan)
+            )))
+            .unwrap();
+        let stop = monitor.stop_handle();
+        let (tx, rx) = mpsc::channel();
+        struct Reporter {
+            buffer: Vec<u8>,
+            tx: mpsc::Sender<serde_json::Value>,
+        }
+        impl Write for Reporter {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.buffer.extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                for line in std::mem::take(&mut self.buffer)
+                    .split(|b| *b == b'\n')
+                    .filter(|line| !line.is_empty())
+                {
+                    self.tx.send(serde_json::from_slice(line).unwrap()).unwrap();
+                }
+                Ok(())
+            }
+        }
+        let handle = thread::spawn(move || monitor.run(&mut Reporter { buffer: vec![], tx }));
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(10)).unwrap()["status"],
+            "watching"
+        );
+        let first = rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(first["reconciliation_required"], true);
+        let reasons = first["reconciliation_reasons"].as_array().unwrap();
+        assert!(reasons.iter().any(|r| r == "backend_rescan"));
+        assert!(
+            reasons
+                .iter()
+                .any(|r| r == "queue_overflow_or_oversized_event")
+        );
+        fs::write(source.join("later"), b"later native event").unwrap();
+        loop {
+            let batch = rx.recv_timeout(Duration::from_secs(10)).unwrap();
+            assert_eq!(batch["reconciliation_required"], true);
+            if batch["changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["path"] == "later")
+            {
+                break;
+            }
+        }
+        stop.stop();
+        handle.join().unwrap().unwrap();
+        assert!(crate::snapshot::list_snapshots(&store).unwrap().is_empty());
+    }
+
     #[test]
     fn stop_wakes_idle_receiver_and_access_events_do_not_fill_queue() {
         let (sender, receiver) = mpsc::sync_channel(1);

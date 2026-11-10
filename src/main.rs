@@ -12,9 +12,10 @@ fn run(args: &[OsString], output: &mut impl Write) -> Result<()> {
             let manifest = rewind::store_file(&store, file, ChunkSizes::default())?;
             writeln!(output, "{}", manifest.save(&store)?.display())?;
         }
-        [command, directory] if command == "watch" => {
+        [command, directory, options @ ..] if command == "watch" => {
+            let config = watch_options(options)?;
             let store = ChunkStore::open(".rewind")?;
-            let monitor = rewind::watch::Monitor::start(&store, directory)?;
+            let monitor = rewind::watch::Monitor::start_with_config(&store, directory, config)?;
             let stop = monitor.stop_handle();
             ctrlc::set_handler(move || stop.stop())
                 .map_err(|e| rewind::Error::Invalid(format!("cannot install Ctrl+C handler: {e}")))?;
@@ -68,7 +69,7 @@ fn run(args: &[OsString], output: &mut impl Write) -> Result<()> {
             rewind::restore_file(&store, &FileManifest::load(PathBuf::from(path))?, destination)?;
         }
         _ => return Err(rewind::Error::Invalid(
-            "usage: rewind init | store <file> | restore <manifest> <output> | verify <manifest> | snapshot <directory> | watch <directory> | snapshots | restore-snapshot <snapshot-id> <output-directory> | diff <snapshot-a> <snapshot-b>"
+            "usage: rewind init | store <file> | restore <manifest> <output> | verify <manifest> | snapshot <directory> | watch <directory> [--debounce-ms <n>] [--max-delay-ms <n>] | snapshots | restore-snapshot <snapshot-id> <output-directory> | diff <snapshot-a> <snapshot-b>"
                 .into(),
         )),
     }
@@ -85,4 +86,34 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn watch_options(options: &[OsString]) -> Result<rewind::watch::DebounceConfig> {
+    let mut quiet = None;
+    let mut maximum = None;
+    let (pairs, remainder) = options.as_chunks::<2>();
+    for pair in pairs {
+        let value = pair[1]
+            .to_str()
+            .and_then(|s| s.parse::<u64>().ok())
+            .ok_or_else(|| {
+                rewind::Error::Invalid("watch timing must be integer milliseconds".into())
+            })?;
+        let target = if pair[0] == "--debounce-ms" {
+            &mut quiet
+        } else if pair[0] == "--max-delay-ms" {
+            &mut maximum
+        } else {
+            return Err(rewind::Error::Invalid("unknown watch option".into()));
+        };
+        if target.replace(value).is_some() {
+            return Err(rewind::Error::Invalid("duplicate watch option".into()));
+        }
+    }
+    if !remainder.is_empty() {
+        return Err(rewind::Error::Invalid(
+            "watch option requires a value".into(),
+        ));
+    }
+    rewind::watch::DebounceConfig::from_millis(quiet.unwrap_or(300), maximum.unwrap_or(2000))
 }

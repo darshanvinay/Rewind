@@ -1,4 +1,4 @@
-# Rewind architecture — Phase 2 and Phase 3 Milestone A
+# Rewind architecture — Phase 2 and Phase 3 Milestones A–B
 
 ## Components and data flow
 
@@ -26,7 +26,8 @@ regular file -> FastCDC -> BLAKE3 chunks -> ordered file manifest
 | `snapshot` | Descriptor-relative capture and validated history loading/listing. |
 | `snapshot_restore` | Private staging-tree reconstruction and atomic no-replace publication. |
 | `diff` | Merkle pruning and relative-path content-change reports. |
-| `watch` | Native recursive event intake, source validation, bounded channel, normalized logging and shutdown. |
+| `watch` | Native recursive intake, source validation/exclusion, bounded channel, timed receive loop and shutdown. |
+| `debounce` | Bounded change accumulation, quiet/maximum deadlines, rename hints and sticky reconciliation state. |
 | `error` | Structured `Result` errors for I/O, metadata, corruption and chunking. |
 
 The public file APIs from Phase 1 remain. Capture passes opened files to a small
@@ -298,7 +299,7 @@ is enabled on Unix, restore on macOS/Linux, and other-platform behavior is limit
 and unvalidated. Native event logging is available; automatic capture, retention,
 GC, snapshot rename detection and FUSE are absent.
 
-## Phase 3 Milestone A — event logging
+## Phase 3 Milestone A — event logging foundation (historical)
 
 The approved Phase 3 architecture adds layers around the existing capture engine:
 
@@ -310,7 +311,7 @@ OS native notifications -> bounded event channel -> validated normalized hints [
     -> end-to-end reliability and workload measurements                     [E]
 ```
 
-Only A is implemented. Each later milestone requires approval; D additionally
+A and B are implemented; the description below records the A foundation. Later milestones require approval; D additionally
 requires reviewing its cache/invalidation design before any implementation.
 The watch command never calls snapshot creation, acquires a writer lock, performs
 pending-marker recovery, hashes source data or mutates storage. Concurrent manual
@@ -385,7 +386,88 @@ validated here; Linux behavior remains untested. See the
 [notify backend limitations](https://docs.rs/notify/latest/notify/) and
 [Ctrl+C handler lifecycle](https://docs.rs/ctrlc/latest/ctrlc/fn.set_handler.html).
 
-For A, backend errors, lost-event flags, invalid runtime entries and application
-queue overflow stop with a diagnostic requiring restart/rescan. Automatic retry,
-reconciliation, debouncing and automatic snapshots remain B–E work. Existing Phase 2
+In A, backend errors, lost-event flags, invalid runtime entries and application
+queue overflow stopped with a diagnostic. B supersedes the raw event output and
+loss handling as described next. Automatic capture/reconciliation and retries
+remain C–E work. Existing Phase 2
 formats, synchronization, verified reuse and crash-recovery behavior are unchanged.
+
+
+## Phase 3 Milestone B — debounced hint batches
+
+`debounce.rs` is a private, filesystem-independent state machine. `DebounceConfig`
+is publicly re-exported through `watch`, and `Monitor::start_with_config` supplements
+the unchanged default `Monitor::start` API. The CLI accepts `--debounce-ms` and
+`--max-delay-ms`. Constructors validate 1 <= quiet <= maximum <= 60,000 milliseconds;
+defaults are 300 and 2,000. No capture/storage code or on-disk format changed.
+
+The states are:
+
+1. **Idle:** no pending accumulator; `recv()` blocks indefinitely without a timer.
+2. **Collecting:** first hint fixes the maximum deadline; each hint updates the
+   quiet deadline. Receive sleeps until `min(first + maximum, last + quiet)` or a
+   message. The main loop checks deadlines before another receive, even if the
+   queue is continuously nonempty.
+3. **Emitting:** `Option::take()` moves the owned bounded batch out of the accumulator
+   before synchronous serialization/output. Native callbacks keep queueing. Once
+   output completes, remaining notifications start a separate batch.
+
+`Instant` is a monotonic clock, unlike wall time. Unit tests supply explicit
+Instants instead of sleeping. `BTreeMap`/`BTreeSet` resemble Python sorted maps/sets:
+they deduplicate while giving deterministic output. An affected path keeps all
+observed kinds; create/remove sequences are never optimistically cancelled. These
+sets are not chronological operations and must not be replayed against a filesystem.
+`recv_timeout` sleeps during collection; it is not filesystem polling. The maximum
+bounds consumer accumulation, not native event delivery, validation, blocked writes,
+or future capture duration. A quiet window is not proof that file contents are stable.
+
+Rename hints retain kind, ordered endpoints and optional backend tracker ID.
+`Both` stays a pair; unpaired halves are never joined by time proximity or tracker
+alone, nor across batch boundaries. Tracker IDs are backend hints, not globally
+unique identities. A paired rename crossing storage exclusion becomes the correct
+source-side from/to half. Renames require full reconciliation conservatively because
+directory descendants/scope may be unknown. Atomic saves preserve temporary-path
+hints plus the destination; no guessed temp-file rules erase potentially relevant
+user changes. Repeated identical hints coalesce, so intermediate version counts
+cannot be inferred from the batch.
+
+Memory has two independent bounds: the existing 1,024-message/64-path/64-KiB callback
+queue, and an accumulator capped at 4,096 distinct paths, 1,024 distinct rename hints
+and 1 MiB of stored path bytes (including copied rename endpoints). Kinds and reasons
+come from fixed internal vocabularies. Reaching any cap retains bounded known hints
+and records `batch_capacity`; omitted details require a full scan. Data structure
+and serialization overhead are additional to path-byte limits. Native library/OS
+queues and per-directory registrations have separate costs.
+
+Overflow uses an out-of-band atomic flag, consumed with `swap(false)` so another
+concurrent loss cannot be silently cleared. A full queue already wakes the consumer;
+an oversized message also attempts a wake. Both become a reconciliation-marked
+batch, including when no path detail survives. Backend `need_rescan`, empty or
+unresolvable paths also become reconciliation hints, not invented changes. Backend
+errors and invalid/unsupported runtime entries still terminate: the loop first
+attempts to emit a `backend_error` or `validation_error` marked batch. A failed output
+may prevent even that diagnostic batch; the CLI still returns an error.
+
+`reconciliation_required` and its finite reason set are **sticky across batches for
+the monitoring session**. Emitting a warning is not acknowledgement of successful
+reconciliation. No B code clears it; C must provide an explicit full-scan success
+boundary, accounting for events/loss during the scan, before any clearing. Startup does not invent a baseline snapshot/cache.
+B's validation scans do not create a Merkle snapshot or implement C reconciliation.
+A restart loses in-memory hints/flags; C must establish an authoritative baseline
+on restart regardless of the first batch's flag. B is not a durable event journal.
+
+Storage-only events are filtered before the bounded queue using canonical prefix
+plus a current directory device/inode check. Rescan flags, mixed source/store
+renames, and store identity changes are never swallowed by this filter. Consumer
+validation retains the original identity exclusion. Coarse root/ancestor events
+cannot be safely distinguished from relevant source changes; they require a full
+reconciliation. C must compare resulting Merkle roots to avoid turning such hints
+into unnecessary history. B itself never triggers capture.
+
+Ctrl+C retains priority. It flushes the bounded accumulator early, checks a bounded
+number of queued messages (ignoring wake-only controls), marks any known pending
+hint remainder for reconciliation, and reports stopped. It does not promise a
+complete final drain or interrupted-write filesystem state. A synchronous blocked
+stdout/validation operation can delay termination; no extra output-worker subsystem
+was introduced. Existing writer locking, pending-marker recovery and file/directory
+sync ordering remain unchanged. Milestone C and later milestones require approval.

@@ -1,8 +1,8 @@
-# Validation — Phase 2 and Phase 3 Milestone A
+# Validation — Phase 2 and Phase 3 Milestones A–B
 
-**Current milestone:** Phase 3 A adds native event logging only, with **77 passing
-tests**. See the final section for current results; Phase 2 reports below remain
-historical evidence.
+**Current milestone:** Phase 3 B emits bounded debounced JSON hint batches, with
+**87 passing tests**. See the final section for current validation. Earlier A and
+Phase 2 reports remain historical evidence; no automatic snapshots are implemented.
 
 **Phase 2 follow-up:** Capture directory batching, exclusive writer coordination and
 pending-marker recovery supersede the earlier performance follow-up. See
@@ -324,3 +324,79 @@ a temporary store, started `watch project` (backend `Fsevent`), wrote binary
 `proof.bin`, received a normalized `create` hint, sent SIGINT, observed `stopped`
 and exit status 0, and verified zero snapshots/pending markers. To reproduce
 interactively, run the README watch example and edit a file from a second terminal.
+
+
+## Phase 3 Milestone B — event debouncing and normalization
+
+Validated on 2026-11-10 (America/Toronto), Apple M4 / 16 GiB / macOS 15.7.4, local
+APFS, Rust/Cargo 1.99.1. No dependency or storage-format changes. Linux remains
+untested. Milestone C automatic snapshot integration was not started.
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test --locked
+cargo build --release --locked
+# Real filesystem tests (includes output backpressure and continuous writes):
+cargo test --test watch_tests --locked
+# Interactive release smoke:
+./target/release/rewind watch project --debounce-ms 100 --max-delay-ms 500
+```
+
+All checks passed: **87 tests, 0 failed, 0 ignored**, consisting of 30 library tests
+(including the existing subprocess helper) and 57 integration tests. A's existing
+tests now consume batches; unknown/lost-event policy checks expect explicit
+reconciliation hints instead of A's former fatal-loss behavior. All Phase 1/2
+storage, integrity, locking and crash-recovery tests still pass. The existing five
+property suites retain 92 generated cases. Native FSEvents, socket and signal tests
+ran outside the Codex sandbox. A restricted lib-test attempt could not start an
+FSEvent stream; the successful complete run was unrestricted. Expected invalid-entry
+cases print diagnostics while their tests pass.
+
+Six new library test entries cover deterministic clock-based quiet/max deadlines,
+repeated modifications, create/delete preservation, atomic-save endpoints, separate
+rename halves, tracker retention, sticky reconciliation without idle heartbeats,
+path/rename/byte capacity limits and timing configuration. The native loop test
+injects an application-overflow flag and a backend rescan hint, verifies an empty
+reconciliation batch is emitted, then verifies later real filesystem changes remain
+marked and monitoring continues. This injection does not claim to induce a real
+kernel queue overflow.
+
+Four new integration tests cover:
+
+- Twelve rapid writes coalescing one affected path, a temporary-file rename save,
+  directory rename and rapid create/delete, with zero automatic snapshots.
+- Continuous 30-ms writes lasting over two seconds: a configured 600-ms maximum
+  produces a batch while writing remains active, rather than waiting indefinitely
+  for the 300-ms quiet period. Precise deadline behavior is tested with synthetic
+  Instants; the native test does not assert a universal wall-time latency bound.
+- An output writer deliberately blocked during its first batch. A real file change
+  during the pause appears in a later batch after output resumes, demonstrating
+  independent callback intake and no accidental clearing of the pending queue.
+- Invalid/duplicate/unknown timing flags, missing/non-integer values and inconsistent
+  windows failing before watcher startup.
+
+Existing real tests retain canonical/custom/nested storage exclusion, root/symlink/
+special-file rejection, Ctrl+C and concurrent manual capture. Confirmed storage-only
+callbacks are now discarded before queueing; mixed rename endpoints and backend
+rescan hints are retained. A coarse ancestor hint cannot be attributed only to
+storage and conservatively requires reconciliation.
+
+A separate locked-release smoke used a fresh temporary store and the Fsevent backend
+with quiet=100 ms / maximum=500 ms. Twelve writes to binary `note.bin` produced one
+batch with a single affected path and create/modify kinds. Replacing it by renaming
+`.save-temp` preserved both temporary/destination hints and native rename records,
+with `reconciliation_required: true` / `rename_scope`. SIGINT emitted stopped and
+exit status 0. A second idle run stopped with no batch. Both runs verified zero
+snapshots, zero chunk objects and no pending marker. These observations are smoke
+results, not throughput, CPU, memory or event-to-snapshot benchmarks.
+
+Reconciliation reasons remain sticky for the monitoring session. B neither performs
+that reconciliation nor persists the hint stream; C must establish an authoritative
+baseline on restart and account for events/loss during any future capture before
+acknowledging reconciliation. Maximum delay bounds collection time, not OS delivery,
+validation, blocked output or future capture duration. Quiet time is not a guarantee
+of stable/atomic filesystem contents. Native unreported event loss remains possible.
+Documentation now describes the batch schema, queue and accumulator bounds, rename
+semantics, shutdown behavior and platform limitations. Milestone B is complete;
+Milestone C awaits explicit approval.

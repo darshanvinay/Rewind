@@ -6,8 +6,8 @@ can be recovered without Git commits or separate full copies.
 
 **Phase 2 is complete:** streaming FastCDC chunking, BLAKE3 chunk identities,
 versioned file manifests, directory Merkle trees, manual snapshots, history,
-verified file/directory restoration, and Merkle-aware diffs. **Phase 3 Milestone A**
-adds native recursive event logging with `watch`. It does not create automatic
+verified file/directory restoration, and Merkle-aware diffs. **Phase 3 Milestones A–B**
+add native recursive monitoring and debounced JSON batches with `watch`. It does not create automatic
 snapshots yet. Manual capture still reads the full source tree on every invocation.
 
 ## Build and test
@@ -69,7 +69,7 @@ printf 'Demo files: %s\n' "$demo_dir"
 | `verify <manifest>` | Validate the recipe, read/hash chunks, check the whole-file digest. |
 | `restore <manifest> <output>` | Restore one file without overwriting an existing output. |
 | `snapshot <directory>` | Capture the tree; print a unique 64-hex snapshot ID. |
-| `watch <directory>` | Recursively log normalized filesystem events as JSON lines; Ctrl+C stops cleanly. No automatic snapshots. |
+| `watch <directory> [--debounce-ms <n>] [--max-delay-ms <n>]` | Emit normalized debounced JSON batches; Ctrl+C stops cleanly. No automatic snapshots. |
 | `snapshots` | List validated records oldest first, with IDs, Unix timestamps and quoted source paths. |
 | `restore-snapshot <id> <output-directory>` | Verify/reconstruct an entire tree into a new destination. |
 | `diff <a> <b>` | Report relative-path additions, deletions and content modifications from A to B. |
@@ -82,55 +82,85 @@ Added/deleted directories include descendants. A type replacement produces delet
 then addition at the same path; renames appear as deletion/addition. This is a
 report, not an executable patch order.
 
-## Watching a directory (Phase 3, Milestone A)
+## Watching a directory (Phase 3, Milestone B)
 
 From a directory with an initialized `.rewind` store:
 
 ```sh
 /path/to/rewind init
 /path/to/rewind watch project
+# Or choose a quiet window and maximum collection delay (milliseconds):
+/path/to/rewind watch project --debounce-ms 300 --max-delay-ms 2000
 # Edit project files from another terminal. Press Ctrl+C to stop.
 ```
 
-For example, in the walkthrough's shell use `"$REWIND_BIN" watch project`.
-The first JSON line reports `status: "watching"`, the canonical root and backend.
-Events contain `kind` and root-relative `paths`; a final line reports `status: "stopped"`:
+In the walkthrough's shell use `"$REWIND_BIN" watch project`. Defaults are **300 ms
+quiet time** and a **2,000 ms maximum collection delay**. Both must be positive
+integer milliseconds, quiet <= maximum, with maximum <= 60,000. Flags may be given
+in either order, once each. Increasing quiet beyond 2,000 also requires setting a
+larger maximum. Invalid options fail before monitoring starts.
+
+The first JSON line reports `status: "watching"`, canonical root, native backend
+and configured timing. Data lines now contain batches rather than A's raw events:
 
 ```json
-{"kind":"modify","paths":["src/note.txt"]}
+{"kind":"batch","changes":[{"path":"src/note.txt","kinds":["modify"]}],"renames":[],"reconciliation_required":false,"reconciliation_reasons":[]}
 ```
 
-Kinds are `create`, `modify`, `remove`, `rename`, `rename-from`, `rename-to`, `any`
-and `other`. Paths retain order for a paired rename; native backends can instead
-report separate rename halves or coarse hints. Root-directory hints use `"."`.
-These are raw normalized notifications, **not logical saves**, an ordered replay
-journal, or proof of a stable filesystem state. Duplicates/coalescing are expected.
-Read/access-only events are ignored. Output is flushed after each JSON line.
+Paths and their observed kinds are deduplicated and sorted. Kinds are `create`,
+`modify`, `remove`, `rename`, `rename-from`, `rename-to`, `any` and `other`.
+Create-then-delete keeps **both** kinds; it is not cancelled into “no change.”
+Temporary files in atomic-save patterns remain hints rather than being guessed
+away. `renames` retains ordered paths and optional native `tracker` IDs; paired
+renames stay paired, separate halves stay separate, and no guessed pairing occurs
+across batches. Directory rename hints do not enumerate every affected descendant.
+
+The first hint starts collection. Each later hint moves the quiet deadline; the
+first-hint maximum deadline stays fixed, preventing starvation under continuous
+writes. Emission checks that deadline before taking another queued event. Deadlines
+measure consumer collection time, not guaranteed event-to-output latency: native
+latency, validation, scheduling and blocked stdout can add delay. A batch is a set
+of observed change hints, **not a logical save**, replay plan or atomic filesystem
+state. Rapid saves may merge; a continuous save may span batches.
+
+Loss/ambiguity sets `reconciliation_required: true`, including queue or batch
+capacity overflow, backend rescan flags, unresolvable/missing paths, coarse hints
+and rename scope. Reasons remain sticky on later batches for the monitoring session;
+B has no authoritative scan/acknowledgement that could safely clear them. Milestone C
+must perform a full reconciliation before trusting any future fast path. B itself
+performs **no reconciliation capture and creates no snapshots**. Backend failures,
+unsupported entries or changed root/store identity still stop with an error, after
+attempting a final reconciliation-marked batch. Output errors propagate.
+
+The bounded callback queue accepts at most 1,024 notifications, 64 paths / 64 KiB
+of path bytes each. Accumulation is separately bounded to 4,096 paths, 1,024 rename
+hints and 1 MiB of stored path bytes per batch. At capacity, known bounded hints
+remain and omitted detail is explicitly covered by the full-reconciliation flag.
+Native callbacks continue queueing while output processes a batch; subsequent
+hints enter a later batch. While idle the consumer blocks without polling; while
+collecting it sleeps until a message or deadline. Slow/blocked stdout can still
+overload the queue or delay shutdown. Native library/kernel buffers have separate
+limits. Ctrl+C flushes accumulated hints early, marks any observed queued remainder
+for reconciliation, emits `status: "stopped"` and exits successfully; it does not
+promise to drain all notifications at shutdown.
 
 The actual store is excluded by canonical location and directory identity, even
-when named differently through the library API. An unrelated directory named
-`.rewind` remains source data. Root symlinks, symlinks/special files found during
-startup or later validation, unsupported names and excessive depth are rejected.
-Startup registration precedes validation so events during validation are queued.
-The source/store must stay at stable locations; detected movement/replacement,
-backend errors, unresolvable paths, reported event loss or queue overflow stop the
-command with an explicit error. Restart after resolving the cause. There is no
-automatic rescan/recovery loop yet, nor protection against unreported OS event loss.
+when named differently through the library API. Confirmed store-only notifications
+are discarded before entering the queue; mixed rename events retain source-side
+endpoints. An unrelated `.rewind` remains source data. Coarse ancestor hints such
+as `"."` cannot safely be attributed only to storage and require reconciliation.
+Source/store paths must remain stable. Startup and runtime checks reject unsupported
+symlinks, special files, names and excessive depth, as in A. Startup registration
+precedes validation. The watcher neither changes storage nor takes a writer lock;
+manual commands retain their existing durability protocol.
 
-The application queue holds at most 1,024 notifications, with at most 64 paths and
-64 KiB of path bytes per notification. It never blocks the native callback on a full
-queue or silently treats lost events as complete history. While idle the consumer
-blocks on a channel, with no periodic polling. Ctrl+C wakes it and stops monitoring;
-queued events are not drained on shutdown. Slow or blocked stdout can delay shutdown
-and overload the queue. Native library/kernel buffering has separate limits.
-
-macOS uses FSEvents; Linux uses inotify. Delivery/coalescing and rename detail differ;
-Linux recursively installs per-directory watches and is subject to watch/queue limits
-and races when new directories arrive. FSEvents can emit coarse/drop/rescan hints and
-is subject to macOS permissions. No polling fallback is selected. Network/pseudo
-filesystems may not emit useful events. Only macOS has been tested. See
-[the native notify documentation](https://docs.rs/notify/latest/notify/) and
-[the watcher architecture](docs/architecture.md#phase-3-milestone-a--event-logging).
+macOS uses FSEvents; Linux uses inotify. Coalescing, rename detail and delivery differ;
+Linux has per-directory watch/queue limits and recursive-registration races.
+FSEvents can emit coarse/rescan hints and is subject to macOS permissions. Network
+and pseudo filesystems may emit no useful events; unreported loss is not detectable
+by this layer. No polling fallback is selected. Only macOS has been tested. See
+[notify documentation](https://docs.rs/notify/latest/notify/) and
+[the debounce architecture](docs/architecture.md#phase-3-milestone-b--debounced-hint-batches).
 
 ## Storage and verification
 
@@ -208,12 +238,12 @@ Full restoration performs stronger verification. Listing checks records only.
   marker; the next writer repairs surviving namespace links before reuse. A failed
   recovery barrier retains the marker and blocks writes. Never remove `writer.lock`
   while in use. macOS uses `sync_all`, not F_FULLFSYNC.
-- Event logging is available, but automatic snapshots, debouncing, a daemon,
+- Event logging is available, but automatic snapshots, a daemon,
   retention, GC, snapshot rename detection and FUSE mounts do not exist yet.
 
 ## Evidence and next steps
 
-The current suite has 77 passing tests, zero failures/ignored tests on macOS, including
+The current suite has 87 passing tests, zero failures/ignored tests on macOS, including
 five property suites (92 cases) and a complete CLI workflow. Small release-build
 measurements record elapsed time, CPU time, peak RSS and chunk growth, without
 comparisons to other tools or universal speed claims.
@@ -221,7 +251,7 @@ comparisons to other tools or universal speed claims.
 See [validation and measurements](docs/validation.md), [raw measurements](docs/measurements-phase2.json),
 and [architecture, review findings and Phase 3 milestones](docs/architecture.md).
 The reproducible measurement harness is [scripts/measure_phase2.py](scripts/measure_phase2.py).
-Phase 3 Milestone A is implemented. Milestones B–E require further approval; no
+Phase 3 Milestones A–B are implemented. Milestones C–E require further approval; no
 automatic capture or incremental tracking has been implemented.
 
 Verified-existing-object reuse retains BLAKE3 verification. Capture-only directory
@@ -229,4 +259,4 @@ sync batching now uses an object durability barrier before snapshot publication,
 with exclusive writer coordination and durable pending-marker recovery. Standalone
 objects retain immediate durability. See [capture batching and measured results](docs/capture-batching.md)
 and [earlier verified reuse results](docs/verified-reuse.md). Persistence concurrency
-and Phase 3 Milestones B–E remain unimplemented.
+and Phase 3 Milestones C–E remain unimplemented.
