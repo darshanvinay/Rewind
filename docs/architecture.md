@@ -1,4 +1,4 @@
-# Rewind architecture — Phase 2
+# Rewind architecture — Phase 2 and Phase 3 Milestone A
 
 ## Components and data flow
 
@@ -26,6 +26,7 @@ regular file -> FastCDC -> BLAKE3 chunks -> ordered file manifest
 | `snapshot` | Descriptor-relative capture and validated history loading/listing. |
 | `snapshot_restore` | Private staging-tree reconstruction and atomic no-replace publication. |
 | `diff` | Merkle pruning and relative-path content-change reports. |
+| `watch` | Native recursive event intake, source validation, bounded channel, normalized logging and shutdown. |
 | `error` | Structured `Result` errors for I/O, metadata, corruption and chunking. |
 
 The public file APIs from Phase 1 remain. Capture passes opened files to a small
@@ -294,20 +295,97 @@ ownership, ACLs, xattrs, sparse extent maps and hard-link relationships are not
 preserved; hard-linked sources restore as independent files. Source symlinks,
 FIFOs, sockets and devices are unsupported. Only macOS has been validated; capture
 is enabled on Unix, restore on macOS/Linux, and other-platform behavior is limited
-and unvalidated. Automatic monitoring, retention, GC, rename detection and FUSE
-are absent.
+and unvalidated. Native event logging is available; automatic capture, retention,
+GC, snapshot rename detection and FUSE are absent.
 
-## Proposed Phase 3 — not implemented
+## Phase 3 Milestone A — event logging
 
-Agree the next scope before starting. A reasonable sequence is:
+The approved Phase 3 architecture adds layers around the existing capture engine:
 
-1. Define source-mutation detection/retry policy; broaden platform and actual
-   crash/power-loss validation before considering persistence concurrency.
-2. Add a watcher frontend with explicit debounce, overflow/error handling and full
-   rescan fallback, retaining manual capture as the correctness reference.
-3. Track changed paths and rebuild affected Merkle ancestors incrementally; test
-   watcher event loss and compare results against full captures.
-4. Repeat the same measurements before choosing optimizations. Design reader/GC
-   coordination and retention separately before enabling any deletion.
+```text
+OS native notifications -> bounded event channel -> validated normalized hints [A]
+    -> debounced logical change batches                                    [B]
+    -> stability/retry policy -> existing capture + lock/recovery/barriers   [C]
+    -> safe cache/invalidation + authoritative reconciliation               [D]
+    -> end-to-end reliability and workload measurements                     [E]
+```
 
-No Phase 3 code was added in Milestone E.
+Only A is implemented. Each later milestone requires approval; D additionally
+requires reviewing its cache/invalidation design before any implementation.
+The watch command never calls snapshot creation, acquires a writer lock, performs
+pending-marker recovery, hashes source data or mutates storage. Concurrent manual
+writers retain their existing locking and durability protocol. `open` still
+requires an initialized store, and read-only monitoring leaves a pending marker alone.
+
+`Monitor::start` opens a no-follow source directory descriptor, resolves canonical
+source/store locations, checks the opened source device/inode and rejects a source
+inside the store. It registers a `notify::RecommendedWatcher` recursively and then
+walks the source through descriptor-relative no-follow directory opens and stats.
+The scan enforces the existing portable name policy, root depth zero and maximum
+256 directory levels, rejecting symlinks/special entries and skipping the store's
+actual device/inode. It retains directory iterators rather than a whole-tree index.
+No payloads are opened/read for hashing. There is no point-in-time startup view.
+
+The native backend owns a callback thread. Its callback ignores access-only hints
+and uses `SyncSender::try_send` into a 1,024-message application queue. Each accepted
+notification has at most 64 paths / 64 KiB of encoded path bytes; oversized backend
+errors are bounded by the same path limit. An atomic overflow flag plus a wake/full
+queue makes loss observable without blocking that thread. Library and OS internal
+buffers are separate from this application bound; total native watcher memory also
+scales with registrations. Native recursive registration can traverse the storage
+namespace even though Rewind filters its events out at the consumer.
+
+`Monitor::run(self, output)` owns the watcher, receiver and source descriptor until
+it returns. `recv()` sleeps while no events arrive. `StopHandle` shares a stop flag
+and sender; the CLI installs one `ctrlc` handler that sets the flag and sends a wake
+message. If the queue is full it already provides a wakeup. The loop gives shutdown
+priority, emits a stopped status and drops its native watcher. It does not drain
+pending hints. The CLI registers the handler after startup validation; an interrupt
+during earlier setup follows the process's normal SIGINT behavior. Output writes
+remain synchronous: blocked stdout or a long validation scan can delay shutdown.
+
+A channel resembles Python's `queue.Queue`, but Rust makes transfer/ownership
+explicit. A `move` closure owns callback sender clones so they survive the setup
+function. `Arc` shares a stop/overflow flag across threads with reference counting;
+atomics communicate tiny pieces of state without a mutex. `Result` and `?` propagate
+errors rather than suppressing them. Keeping the watcher in `Monitor` matters:
+returning from setup with only a receiver would drop the watcher and stop events.
+Dropping the owned monitor closes native resources; no unsafe Rust was added.
+
+The normalizer checks root/store identity, rejects event-loss flags and ambiguous
+empty/outside/parent-traversal paths, and maps kinds into a small stable vocabulary.
+Canonical roots anchor lexical suffixes so a removed path can still be reported;
+a deleted leaf itself cannot be canonicalized. Existing components are checked via
+no-follow descriptor traversal. New directory/coarse root hints are scanned for
+unsupported entries; vanished paths are normal deletion/rename hints. Paired rename
+paths retain their order; crossing the store boundary keeps only the source-side
+path. Backend events need not supply paired renames. Unknown-path rescan events
+fail explicitly, rather than inventing a specific file save.
+
+Exclusion uses the canonical store prefix and the store's device/inode, not the
+basename `.rewind`. The store is filtered before normal source-name validation, so
+its internal names do not become user-file errors. An unrelated `.rewind` directory
+is ordinary data. Store/root movement or replacement requires restart when detected.
+A coarse ancestor hint may still be logged as `"."`; it cannot be safely attributed
+to only storage activity. No capture is triggered by any hint in A. B/C must treat
+coarse hints conservatively and compare resulting state, not assume one event is
+one save. An unsupported object created and removed between observation points
+may no longer be inspectable, and unreported native event loss is not detected.
+Trusted/stable ancestors remain required; this is not a hostile-filesystem sandbox.
+
+macOS selects FSEvents; Linux selects inotify. FSEvents can coalesce changes or
+report coarse/rescan flags. inotify uses per-directory registrations, kernel watch/
+queue limits and rename cookies, and cannot guarantee every event while recursively
+registering a newly arrived directory. Neither is an authoritative replay log.
+`with_follow_symlinks(false)` configures backends supporting that option; Rewind's
+own validation rejects symlinks independently. FSEvents does not use that config
+option for recursion. OS permissions and unsupported/network/pseudo filesystems can
+limit delivery. No PollWatcher or busy-loop fallback is enabled. macOS alone is
+validated here; Linux behavior remains untested. See the
+[notify backend limitations](https://docs.rs/notify/latest/notify/) and
+[Ctrl+C handler lifecycle](https://docs.rs/ctrlc/latest/ctrlc/fn.set_handler.html).
+
+For A, backend errors, lost-event flags, invalid runtime entries and application
+queue overflow stop with a diagnostic requiring restart/rescan. Automatic retry,
+reconciliation, debouncing and automatic snapshots remain B–E work. Existing Phase 2
+formats, synchronization, verified reuse and crash-recovery behavior are unchanged.

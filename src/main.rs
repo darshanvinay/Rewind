@@ -12,6 +12,14 @@ fn run(args: &[OsString], output: &mut impl Write) -> Result<()> {
             let manifest = rewind::store_file(&store, file, ChunkSizes::default())?;
             writeln!(output, "{}", manifest.save(&store)?.display())?;
         }
+        [command, directory] if command == "watch" => {
+            let store = ChunkStore::open(".rewind")?;
+            let monitor = rewind::watch::Monitor::start(&store, directory)?;
+            let stop = monitor.stop_handle();
+            ctrlc::set_handler(move || stop.stop())
+                .map_err(|e| rewind::Error::Invalid(format!("cannot install Ctrl+C handler: {e}")))?;
+            monitor.run(output)?;
+        }
         [command, directory] if command == "snapshot" => {
             let store = ChunkStore::open(".rewind")?;
             let snapshot = rewind::snapshot::create_snapshot(&store, directory)?;
@@ -60,7 +68,7 @@ fn run(args: &[OsString], output: &mut impl Write) -> Result<()> {
             rewind::restore_file(&store, &FileManifest::load(PathBuf::from(path))?, destination)?;
         }
         _ => return Err(rewind::Error::Invalid(
-            "usage: rewind init | store <file> | restore <manifest> <output> | verify <manifest> | snapshot <directory> | snapshots | restore-snapshot <snapshot-id> <output-directory> | diff <snapshot-a> <snapshot-b>"
+            "usage: rewind init | store <file> | restore <manifest> <output> | verify <manifest> | snapshot <directory> | watch <directory> | snapshots | restore-snapshot <snapshot-id> <output-directory> | diff <snapshot-a> <snapshot-b>"
                 .into(),
         )),
     }

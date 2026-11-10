@@ -1,6 +1,10 @@
-# Phase 2 final validation — Milestone E
+# Validation — Phase 2 and Phase 3 Milestone A
 
-**Current follow-up:** Capture directory batching, exclusive writer coordination and
+**Current milestone:** Phase 3 A adds native event logging only, with **77 passing
+tests**. See the final section for current results; Phase 2 reports below remain
+historical evidence.
+
+**Phase 2 follow-up:** Capture directory batching, exclusive writer coordination and
 pending-marker recovery supersede the earlier performance follow-up. See
 [the protocol, current validation and paired measurements](capture-batching.md).
 The verified-existing-object fast path previously passed 57 tests; its
@@ -265,3 +269,58 @@ Failure injection, abrupt subprocess exit and SIGKILL validate process recovery,
 not actual power-loss behavior. macOS still uses sync_all rather than F_FULLFSYNC;
 trusted paths, advisory-lock participation and hardware/filesystem sync behavior
 remain prerequisites. No GC, packed log, parallel persistence or Phase 3 was added.
+
+
+## Phase 3 Milestone A — native filesystem watcher
+
+Validated on 2026-11-10 (America/Toronto): Apple M4, 16 GiB, macOS 15.7.4 / local
+APFS, Rust/Cargo 1.99.1. Dependencies pinned by Cargo.lock: notify 8.2.2 and
+ctrlc 3.5.2. Linux/inotify and other platforms were not tested. No latency/idle-CPU,
+throughput or automatic snapshot benchmarks are claimed at A; the loop blocks on
+channel receive and no automatic snapshots exist to benchmark. Phase 2 performance
+numbers above remain historical rather than new watcher measurements.
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test --locked
+cargo build --release --locked
+# Focused real filesystem checks:
+cargo test --test watch_tests --locked
+```
+
+Formatting, Clippy with warnings denied and the complete suite passed:
+**77 tests, 0 failed, 0 ignored** (24 library tests, including the existing subprocess
+helper, plus 53 integration tests). All previous 67 tests still pass; five watcher
+unit tests and five native integration tests were added. The existing five property
+suites retain 92 generated cases. Native/signal/socket checks ran outside the Codex
+sandbox. Expected failure cases print diagnostics while their tests pass.
+
+Real filesystem tests exercise creation, existing-file modification, binary data,
+file deletion and rename, newly created nested directories, directory rename,
+canonical ancestor aliases, custom storage locations and unrelated `.rewind`
+directories. CLI tests verify stdout JSON, Ctrl+C exit status 0, startup/runtime
+symlink and special-file rejection, root removal, actual nested `.rewind` exclusion,
+and a manual capture while monitoring. Monitoring alone creates no snapshot,
+chunk data or pending marker. The manual-capture concurrency test creates exactly
+the one explicitly requested record. Native notification counts/order vary by OS;
+tests wait for affected paths instead of demanding a one-event-per-write model.
+
+Unit tests cover paired rename order, store-boundary filtering, vanished paths,
+backend rescan flags, malformed/unknown paths, changed store identity, coarse root
+validation, bounded queue overflow/oversized notifications and shutdown wakeup.
+Queue-loss checks do not pretend to reproduce a real kernel overflow. During
+development a root-symlink fixture was corrected to use an allowed ancestor alias;
+the final checks have no failures/skips.
+
+A is complete. The watch command logs normalized raw hints and stops explicitly on
+detected loss/errors; it does not debounce, reconcile, retry captures or create
+snapshots. Process-crash/power-loss guarantees remain those of the unchanged Phase 2
+engine. Milestone B and all later work await approval. The architecture documents
+native backend differences, queue bounds and remaining event-delivery limitations.
+
+The locked release build also passed. A separate release CLI smoke test initialized
+a temporary store, started `watch project` (backend `Fsevent`), wrote binary
+`proof.bin`, received a normalized `create` hint, sent SIGINT, observed `stopped`
+and exit status 0, and verified zero snapshots/pending markers. To reproduce
+interactively, run the README watch example and edit a file from a second terminal.

@@ -17,3 +17,5 @@ pub use snapshot_restore::restore_snapshot;
 pub use diff::diff_snapshots;
 
 mod transaction;
+
+pub mod watch;
