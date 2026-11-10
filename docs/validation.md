@@ -1,8 +1,10 @@
-# Validation — Phase 2 and Phase 3 Milestones A–B
+# Validation — Phase 2 and Phase 3 Milestones A–C
 
-**Current milestone:** Phase 3 B emits bounded debounced JSON hint batches, with
-**87 passing tests**. See the final section for current validation. Earlier A and
-Phase 2 reports remain historical evidence; no automatic snapshots are implemented.
+**Current milestone:** Phase 3 C adds automatic durable history with two-pass
+full-source validation, unchanged-root suppression and generation-aware follow-up.
+**105 tests pass**, with zero failures/ignored tests. See the final section and
+[automatic capture measurements](automatic-capture.md). Earlier reports below are
+historical evidence, not current CLI behavior.
 
 **Phase 2 follow-up:** Capture directory batching, exclusive writer coordination and
 pending-marker recovery supersede the earlier performance follow-up. See
@@ -271,7 +273,7 @@ trusted paths, advisory-lock participation and hardware/filesystem sync behavior
 remain prerequisites. No GC, packed log, parallel persistence or Phase 3 was added.
 
 
-## Phase 3 Milestone A — native filesystem watcher
+## Phase 3 Milestone A — native filesystem watcher (historical)
 
 Validated on 2026-11-10 (America/Toronto): Apple M4, 16 GiB, macOS 15.7.4 / local
 APFS, Rust/Cargo 1.99.1. Dependencies pinned by Cargo.lock: notify 8.2.2 and
@@ -326,7 +328,7 @@ and exit status 0, and verified zero snapshots/pending markers. To reproduce
 interactively, run the README watch example and edit a file from a second terminal.
 
 
-## Phase 3 Milestone B — event debouncing and normalization
+## Phase 3 Milestone B — event debouncing and normalization (historical)
 
 Validated on 2026-11-10 (America/Toronto), Apple M4 / 16 GiB / macOS 15.7.4, local
 APFS, Rust/Cargo 1.99.1. No dependency or storage-format changes. Linux remains
@@ -400,3 +402,71 @@ of stable/atomic filesystem contents. Native unreported event loss remains possi
 Documentation now describes the batch schema, queue and accumulator bounds, rename
 semantics, shutdown behavior and platform limitations. Milestone B is complete;
 Milestone C awaits explicit approval.
+
+
+## Phase 3 Milestone C — automatic snapshot integration
+
+Validated 2026-11-10 (America/Toronto), Apple M4 / 16 GiB / macOS 15.7.4, local APFS,
+Rust/Cargo 1.99.1. No dependencies or on-disk versions changed. Startup/configuration errors also
+emit fatal structured JSON (`watch_setup`) before readiness. Linux is unvalidated.
+
+`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`
+and the locked release build passed. Final count: **105 passed, 0 failed, 0 ignored**
+(39 library + 66 integration entries, including two subprocess helpers). The existing
+five property suites retain 92 cases. An initial full-suite depth test caught a
+recursive stack overflow; extraction of the file leaf helper fixed it without
+reducing the depth limit. A permission-review timeout happened before execution;
+the authorized retry succeeded. Final native/signal/socket checks ran outside the
+Codex sandbox. Expected fatal test cases print errors while their tests pass.
+
+The event-only library API is retained and tested. The product CLI now captures an
+initial baseline, then captures from debounced hints. New tests cover manual/automatic
+root parity, zero-write identical checks, changed/missing/corrupt stored objects,
+source-scoped restart deduplication, rapid saves, atomic-save renames, deletions,
+nested binary data and empty directories, simultaneous watchers/manual writers,
+historical restoration and nested storage feedback suppression. Cancellation tests
+cover writer-lock waiting and post-object-barrier abort, marker retention and
+successful next-writer recovery. Object/recovery barrier failure injection fails
+closed. Controlled source changes between passes cause retry without publication.
+A controlled change after final checks demonstrates the documented TOCTOU window:
+the first complete archive is valid older data and a retained event produces a
+second complete archive. Overflow/rescan indications during capture remain pending
+until a subsequent authoritative scan. No actual kernel overflow/power cut was induced.
+
+Release CLI validation/benchmarks:
+
+```sh
+python3 scripts/benchmark_automatic.py --trials 3 --mib 32 --many-files 256   --idle-seconds 2 --output docs/automatic-capture-benchmark.json
+```
+
+All six release trials passed baseline, unchanged skip, three edits, 25-write burst,
+idle, Ctrl+C, five independent restores and restart skip. Exactly five records per
+trial, all **30 historical restores** matched, zero duplicate records on unchanged
+checks or restarts, and no marker remained after normal shutdown.
+
+| Median elapsed seconds | One 32 MiB file | 256 files totaling 32 MiB |
+| --- | --- | --- |
+| Fresh automatic baseline | 2.7142 | 4.8320 |
+| Unchanged touch → skipped | 0.4421 | 0.4549 |
+| 4-KiB edit → committed snapshot | 0.4958 | 0.5066 |
+| Final write of 25-write burst → snapshot | 0.4906 | 0.4976 |
+| Restart → skipped baseline | 0.1074 | 0.1322 |
+
+All event-to-outcome numbers include native delivery, the default 300-ms debounce,
+both full source scans, metadata validation, lock waiting and durable commit where
+needed. Worker-only edit medians were 0.1791 / 0.1900 seconds. Fresh baselines include
+process startup/native setup and do not wait for debounce. These are not comparable
+speedups against earlier manual benchmarks with different payloads/timing boundaries.
+
+Every measured edit/final burst added one chunk, manifest and root node: 134,257 /
+86,977 chunk payload bytes. Unchanged/restarts added zero objects/records. Idle
+`ps TIME` had no measurable CPU increase at 0.01-second resolution across six ~2-s
+windows; this is not proof of zero CPU. RSS endpoints were 9.64–11.61 MiB, stable
+within each idle window, not peak or kernel-cache memory. See [full method, ranges,
+worker times, growth and limitations](automatic-capture.md) and [raw results](automatic-capture-benchmark.json).
+
+Source observations remain non-atomic. Unreported events, final-check/publication
+TOCTOU, foreground process termination and full-scan costs remain material. Existing
+BLAKE3/no-clobber/file-and-directory sync/recovery guarantees are preserved; macOS
+still does not use F_FULLFSYNC. The completed C implementation adds no incremental
+cache, daemon, retention, GC or Phase 4 functionality. Milestone D awaits approval.

@@ -12,14 +12,25 @@ fn run(args: &[OsString], output: &mut impl Write) -> Result<()> {
             let manifest = rewind::store_file(&store, file, ChunkSizes::default())?;
             writeln!(output, "{}", manifest.save(&store)?.display())?;
         }
-        [command, directory, options @ ..] if command == "watch" => {
-            let config = watch_options(options)?;
-            let store = ChunkStore::open(".rewind")?;
-            let monitor = rewind::watch::Monitor::start_with_config(&store, directory, config)?;
-            let stop = monitor.stop_handle();
-            ctrlc::set_handler(move || stop.stop())
-                .map_err(|e| rewind::Error::Invalid(format!("cannot install Ctrl+C handler: {e}")))?;
-            monitor.run(output)?;
+        [command, arguments @ ..] if command == "watch" => {
+            let setup = (|| -> Result<rewind::watch::Monitor> {
+                let (directory, options) = arguments.split_first().ok_or_else(|| rewind::Error::Invalid("watch requires a directory".into()))?;
+                let config = watch_options(options)?;
+                let store = ChunkStore::open(".rewind")?;
+                let monitor = rewind::watch::Monitor::start_with_config(&store, directory, config)?;
+                let stop = monitor.stop_handle();
+                ctrlc::set_handler(move || stop.stop())
+                    .map_err(|e| rewind::Error::Invalid(format!("cannot install Ctrl+C handler: {e}")))?;
+                Ok(monitor)
+            })();
+            match setup {
+                Ok(monitor) => monitor.run_automatic(output)?,
+                Err(error) => {
+                    writeln!(output,"{}",serde_json::json!({"kind":"error","fatal":true,"code":"watch_setup","message":error.to_string()}))?;
+                    output.flush()?;
+                    return Err(error);
+                }
+            }
         }
         [command, directory] if command == "snapshot" => {
             let store = ChunkStore::open(".rewind")?;

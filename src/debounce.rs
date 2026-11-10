@@ -151,6 +151,9 @@ impl Debouncer {
             self.reasons.insert("batch_capacity");
         }
     }
+    pub(crate) fn acknowledge_reconciliation(&mut self) {
+        self.reasons.clear();
+    }
     pub fn deadline(&self) -> Option<Instant> {
         self.pending
             .as_ref()

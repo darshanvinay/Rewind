@@ -1,14 +1,15 @@
 # Rewind
 
 Rewind is a local-first file-history engine written in Rust. It preserves file
-contents in immutable, deduplicated storage so earlier manually captured versions
+contents in immutable, deduplicated storage so earlier captured versions
 can be recovered without Git commits or separate full copies.
 
 **Phase 2 is complete:** streaming FastCDC chunking, BLAKE3 chunk identities,
 versioned file manifests, directory Merkle trees, manual snapshots, history,
-verified file/directory restoration, and Merkle-aware diffs. **Phase 3 Milestones A–B**
-add native recursive monitoring and debounced JSON batches with `watch`. It does not create automatic
-snapshots yet. Manual capture still reads the full source tree on every invocation.
+verified file/directory restoration, and Merkle-aware diffs. **Phase 3 Milestones A–C**
+add recursive monitoring, debounced batches and automatic durable snapshots with
+`watch`. Automatic capture uses two full scans and observable stability checks;
+it does not provide atomic point-in-time filesystem snapshots.
 
 ## Build and test
 
@@ -69,7 +70,7 @@ printf 'Demo files: %s\n' "$demo_dir"
 | `verify <manifest>` | Validate the recipe, read/hash chunks, check the whole-file digest. |
 | `restore <manifest> <output>` | Restore one file without overwriting an existing output. |
 | `snapshot <directory>` | Capture the tree; print a unique 64-hex snapshot ID. |
-| `watch <directory> [--debounce-ms <n>] [--max-delay-ms <n>]` | Emit normalized debounced JSON batches; Ctrl+C stops cleanly. No automatic snapshots. |
+| `watch <directory> [--debounce-ms <n>] [--max-delay-ms <n>]` | Capture an initial baseline, then automatic snapshots from debounced hints; skip identical roots. Ctrl+C stops cleanly. |
 | `snapshots` | List validated records oldest first, with IDs, Unix timestamps and quoted source paths. |
 | `restore-snapshot <id> <output-directory>` | Verify/reconstruct an entire tree into a new destination. |
 | `diff <a> <b>` | Report relative-path additions, deletions and content modifications from A to B. |
@@ -82,85 +83,89 @@ Added/deleted directories include descendants. A type replacement produces delet
 then addition at the same path; renames appear as deletion/addition. This is a
 report, not an executable patch order.
 
-## Watching a directory (Phase 3, Milestone B)
+## Automatic history (Phase 3, Milestone C)
 
-From a directory with an initialized `.rewind` store:
+From a directory containing an initialized `.rewind` store:
 
 ```sh
 /path/to/rewind init
-/path/to/rewind watch project
-# Or choose a quiet window and maximum collection delay (milliseconds):
 /path/to/rewind watch project --debounce-ms 300 --max-delay-ms 2000
-# Edit project files from another terminal. Press Ctrl+C to stop.
+# Edit project files from another terminal. Ctrl+C stops foreground monitoring.
+/path/to/rewind snapshots
+/path/to/rewind restore-snapshot <snapshot-id> recovered-project
 ```
 
-In the walkthrough's shell use `"$REWIND_BIN" watch project`. Defaults are **300 ms
-quiet time** and a **2,000 ms maximum collection delay**. Both must be positive
-integer milliseconds, quiet <= maximum, with maximum <= 60,000. Flags may be given
-in either order, once each. Increasing quiet beyond 2,000 also requires setting a
-larger maximum. Invalid options fail before monitoring starts.
+The command establishes a baseline immediately, then captures changed directory
+contents after debounced batches. Defaults are 300 ms quiet time and 2,000 ms
+maximum batch collection delay. Both must be integer milliseconds satisfying
+1 <= quiet <= maximum <= 60,000; flags may be given once each in either order.
+The maximum prevents event-collection starvation, not OS latency or slow disk I/O.
+There is no background daemon or incremental processing.
 
-The first JSON line reports `status: "watching"`, canonical root, native backend
-and configured timing. Data lines now contain batches rather than A's raw events:
+Output is newline-delimited JSON. `status: "watching"` means event intake is ready;
+wait for `snapshot_created` or `skipped_identical` to know baseline work completed:
 
 ```json
-{"kind":"batch","changes":[{"path":"src/note.txt","kinds":["modify"]}],"renames":[],"reconciliation_required":false,"reconciliation_reasons":[]}
+{"kind":"snapshot_created","snapshot_id":"<64-hex-id>","root_hash":"<64-hex-root>","reason":"baseline","elapsed_ms":123.4,"consistency":"two_pass_validated_observations"}
 ```
 
-Paths and their observed kinds are deduplicated and sorted. Kinds are `create`,
-`modify`, `remove`, `rename`, `rename-from`, `rename-to`, `any` and `other`.
-Create-then-delete keeps **both** kinds; it is not cancelled into “no change.”
-Temporary files in atomic-save patterns remain hints rather than being guessed
-away. `renames` retains ordered paths and optional native `tracker` IDs; paired
-renames stay paired, separate halves stay separate, and no guessed pairing occurs
-across batches. Directory rename hints do not enumerate every affected descendant.
+Other records include `batch`, `reconciliation` (`started`/`complete`),
+`skipped_identical`, `error` with `fatal`, `cancelled`, and `status: "stopped"`.
+A skipped result refers to the latest record for the same canonical source path.
+It follows a read-only probe and a second full pass verifying source bytes and
+stored chunks/manifests/nodes; it creates neither a duplicate record nor a new
+pending marker. Existing pending recovery may still need filesystem writes.
+Manual `snapshot` keeps its existing behavior of creating a distinct record.
 
-The first hint starts collection. Each later hint moves the quiet deadline; the
-first-hint maximum deadline stays fixed, preventing starvation under continuous
-writes. Emission checks that deadline before taking another queued event. Deadlines
-measure consumer collection time, not guaranteed event-to-output latency: native
-latency, validation, scheduling and blocked stdout can add delay. A batch is a set
-of observed change hints, **not a logical save**, replay plan or atomic filesystem
-state. Rapid saves may merge; a continuous save may span batches.
+Every automatic attempt takes the existing exclusive writer lock, recovers any
+pending write, and makes two full source traversals with the existing FastCDC,
+BLAKE3 and canonical serialization. Changed candidates use the normal object
+file-sync/no-clobber/directory-barrier protocol before publishing history. Matching
+roots plus identity/size/mode/mtime/ctime checks detect observable source changes.
+Observed instability aborts without a record and retries. **These checks are not an
+atomic filesystem snapshot:** changes can occur between observations and after the
+last check. Quiesce a source when a consistent logical state is required.
 
-Loss/ambiguity sets `reconciliation_required: true`, including queue or batch
-capacity overflow, backend rescan flags, unresolvable/missing paths, coarse hints
-and rename scope. Reasons remain sticky on later batches for the monitoring session;
-B has no authoritative scan/acknowledgement that could safely clear them. Milestone C
-must perform a full reconciliation before trusting any future fast path. B itself
-performs **no reconciliation capture and creates no snapshots**. Backend failures,
-unsupported entries or changed root/store identity still stop with an error, after
-attempting a final reconciliation-marked batch. Output errors propagate.
+One capture worker runs while the controller continues intake. Work/results are
+bounded to one job each, with at most one job active and one coalesced future-work
+flag. The existing event queue and batch limits remain. Inputs/loss arriving during
+capture remain pending; success cannot acknowledge a newer event generation.
+Overflow and ambiguous hints require a full scan—there is no event-based shortcut
+that decides unchanged contents. A restart always establishes a fresh baseline.
+The event-only `Monitor::run` library API remains available for A/B-style logging;
+the CLI now uses `run_automatic`.
 
-The bounded callback queue accepts at most 1,024 notifications, 64 paths / 64 KiB
-of path bytes each. Accumulation is separately bounded to 4,096 paths, 1,024 rename
-hints and 1 MiB of stored path bytes per batch. At capacity, known bounded hints
-remain and omitted detail is explicitly covered by the full-reconciliation flag.
-Native callbacks continue queueing while output processes a batch; subsequent
-hints enter a later batch. While idle the consumer blocks without polling; while
-collecting it sleeps until a message or deadline. Slow/blocked stdout can still
-overload the queue or delay shutdown. Native library/kernel buffers have separate
-limits. Ctrl+C flushes accumulated hints early, marks any observed queued remainder
-for reconciliation, emits `status: "stopped"` and exits successfully; it does not
-promise to drain all notifications at shutdown.
+Three-attempt retry cycles cover detected instability and explicitly classified
+transient source errors; after three failures, deferred cycles use backoff from
+1 second up to 30 seconds. Corruption, malformed stored metadata, failed storage/
+recovery barriers, root replacement, unsupported source entries and backend errors
+fail closed with an error. Cancellation checks occur during scanning and writer-lock
+waiting. An in-progress fsync or final commit cannot always stop immediately; a
+complete record may be committed even if Ctrl+C arrives late. Required pending
+markers are left for recovery. Stopped output can indicate pending reconciliation;
+shutdown does not guarantee the final edit was captured.
 
-The actual store is excluded by canonical location and directory identity, even
-when named differently through the library API. Confirmed store-only notifications
-are discarded before entering the queue; mixed rename events retain source-side
-endpoints. An unrelated `.rewind` remains source data. Coarse ancestor hints such
-as `"."` cannot safely be attributed only to storage and require reconciliation.
-Source/store paths must remain stable. Startup and runtime checks reject unsupported
-symlinks, special files, names and excessive depth, as in A. Startup registration
-precedes validation. The watcher neither changes storage nor takes a writer lock;
-manual commands retain their existing durability protocol.
+The actual store is excluded by canonical location and device/inode, not basename.
+An unrelated `.rewind` stays source data. Confirmed store-only events are filtered
+before queueing. A coarse ancestor hint may still cause a scan; identical checks
+perform no new store writes, preventing a snapshot feedback loop. Symlinks/special
+files and unsupported names/depth are rejected. Store and source paths must stay
+trusted/stable. All original writer locking, verification and durability limits
+remain, including macOS `sync_all` rather than F_FULLFSYNC.
 
-macOS uses FSEvents; Linux uses inotify. Coalescing, rename detail and delivery differ;
-Linux has per-directory watch/queue limits and recursive-registration races.
-FSEvents can emit coarse/rescan hints and is subject to macOS permissions. Network
-and pseudo filesystems may emit no useful events; unreported loss is not detectable
-by this layer. No polling fallback is selected. Only macOS has been tested. See
-[notify documentation](https://docs.rs/notify/latest/notify/) and
-[the debounce architecture](docs/architecture.md#phase-3-milestone-b--debounced-hint-batches).
+The callback queue accepts 1,024 notifications, each at most 64 paths / 64 KiB path
+bytes. A batch retains at most 4,096 paths, 1,024 rename hints and 1 MiB path bytes;
+excess detail requires reconciliation. Stability observations are capped at 100,000
+source entries / 16 MiB of absolute path bytes. Native watcher registrations and
+metadata/serialization overhead have separate costs. Slow/blocked stdout or a
+validation scan can delay progress and shutdown.
+
+macOS uses FSEvents and Linux uses inotify; coalescing, rename detail, permission
+constraints and watch/queue limits differ. Unreported native event loss is not
+reliably detectable, and network/pseudo filesystems may emit no useful events.
+No periodic reconciliation timer or polling fallback is added in C; idle processing
+blocks on channels. Only macOS is validated. See [automatic capture details and
+measurements](docs/automatic-capture.md) and [native backend limitations](https://docs.rs/notify/latest/notify/).
 
 ## Storage and verification
 
@@ -238,12 +243,12 @@ Full restoration performs stronger verification. Listing checks records only.
   marker; the next writer repairs surviving namespace links before reuse. A failed
   recovery barrier retains the marker and blocks writes. Never remove `writer.lock`
   while in use. macOS uses `sync_all`, not F_FULLFSYNC.
-- Event logging is available, but automatic snapshots, a daemon,
+- Automatic history runs in the foreground. A daemon, incremental updates,
   retention, GC, snapshot rename detection and FUSE mounts do not exist yet.
 
 ## Evidence and next steps
 
-The current suite has 87 passing tests, zero failures/ignored tests on macOS, including
+The current suite has 105 passing tests, zero failures/ignored tests on macOS, including
 five property suites (92 cases) and a complete CLI workflow. Small release-build
 measurements record elapsed time, CPU time, peak RSS and chunk growth, without
 comparisons to other tools or universal speed claims.
@@ -251,12 +256,12 @@ comparisons to other tools or universal speed claims.
 See [validation and measurements](docs/validation.md), [raw measurements](docs/measurements-phase2.json),
 and [architecture, review findings and Phase 3 milestones](docs/architecture.md).
 The reproducible measurement harness is [scripts/measure_phase2.py](scripts/measure_phase2.py).
-Phase 3 Milestones A–B are implemented. Milestones C–E require further approval; no
-automatic capture or incremental tracking has been implemented.
+Phase 3 Milestones A–C are implemented. Milestones D–E require further approval;
+no incremental tracking has been implemented.
 
 Verified-existing-object reuse retains BLAKE3 verification. Capture-only directory
 sync batching now uses an object durability barrier before snapshot publication,
 with exclusive writer coordination and durable pending-marker recovery. Standalone
 objects retain immediate durability. See [capture batching and measured results](docs/capture-batching.md)
 and [earlier verified reuse results](docs/verified-reuse.md). Persistence concurrency
-and Phase 3 Milestones C–E remain unimplemented.
+and Phase 3 Milestones D–E remain unimplemented.

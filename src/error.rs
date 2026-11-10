@@ -9,6 +9,12 @@ pub enum Error {
     Invalid(String),
     #[error("content integrity check failed: {0}")]
     Corrupt(String),
+    #[error("source filesystem error: {0}")]
+    SourceIo(std::io::Error),
+    #[error("source changed during capture: {0}")]
+    Unstable(String),
+    #[error("capture cancelled")]
+    Cancelled,
     #[error("chunking failed: {0}")]
     Chunking(String),
 }

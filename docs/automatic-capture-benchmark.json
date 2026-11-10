@@ -1,0 +1,961 @@
+{
+  "measured_at_utc": "2026-11-10T20:00:51.604318+00:00",
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "python": "3.13.13",
+    "cpu": "Apple M4",
+    "memory_bytes": "17179869184",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+    "binary_sha256": "49a9d0eb0413ad270b76422d9696879fb85ee15fad3efcb61d5ec024ad7f2548"
+  },
+  "source_sha256": {
+    "src/chunking.rs": "74648e5f04c210df51a48afcf4d376d634a8417641a79cb6a622b9a2794a5aed",
+    "src/debounce.rs": "a9993357961cc0cb27c7f09df807e697469eb38c8859203197de5d65e255c78c",
+    "src/diff.rs": "b881edd9d3c8ee39e0093703289f63ab4f4e8e98605efb1995b107244279d2d3",
+    "src/error.rs": "8e076bb957fd92f8a752d172b7e68bb5e929f7db2ab2a532ed0da61b039e2feb",
+    "src/hashing.rs": "f71aa8d158e28b27507f2c3d4a04fdca0696120bc63aa4ade23d89886cc18153",
+    "src/lib.rs": "8ca16578f7acecde77f284ab0edd4a5ea30c20182fe177224f8b95ecf4aaf493",
+    "src/main.rs": "ffc84149b0566ea5f58def7c5377ad6d8d8fb80f634ed947851d3dbb409ac729",
+    "src/manifest.rs": "50cd1251afb9e25998a9e1b0c1c9d4a92aad2506b828227c6b72a339a8039aae",
+    "src/snapshot.rs": "ab20c8c725ffc89462311ee28cb23076e17558e37be3307e936f11213aca544e",
+    "src/snapshot_restore.rs": "39706da00964a719ea94ee2de4dd979e37bd5ab8d105b23ea3bdcaba3719967b",
+    "src/snapshot_scan.rs": "b2a7987702cd39ef5edba440c578ad90ad475cad04443e90e4862d83ddff7b59",
+    "src/storage.rs": "8711b50a2801521f9db2741fd87e9a4473915089225fb7d93e6976ba7a6d68ec",
+    "src/transaction.rs": "1fe1a6994497eee1602468606c6fba5c8a4579824382cb5d191c854a183c220d",
+    "src/tree.rs": "aa61f6462f3eabe3504a68e87f853436b2af5ff28503999b3a474f00ab38f1e6",
+    "src/watch.rs": "25bed4439691d9a8c0e69805d89407f77eed0543d1cc0c044604ae78885e229b",
+    "src/watch_auto.rs": "7f89af0c2c3d8c09a06488d0c67c7a86526c83acbff2c139dab253de03d7a8ff"
+  },
+  "method": {
+    "payload": "SHAKE256(rewind-auto-c-v1); split into equal distinct files",
+    "trials": 3,
+    "timing": "perf_counter write-close to snapshot/skipped JSON receipt, includes native delivery, 300-ms debounce, worker queue/lock, two full scans, validation and durable publication",
+    "baseline_timing": "process launch to baseline receipt includes native watcher setup and validation",
+    "worker_timing": "reported elapsed_ms covers lock/recovery, read-only probe, second verify/persistent scan, final metadata checks, and commit; excludes debounce",
+    "idle": "ps TIME delta (aggregate process CPU across threads, 0.01-s resolution) / interval; RSS endpoints, not peak or kernel cache",
+    "cache": "warm/uncontrolled; generated and SHA256-read before watcher; no eviction; APFS local temporary data",
+    "limitations": "small local dataset; idle windows short; no syscall tracing, power-loss tests or atomic source-state guarantee"
+  },
+  "samples": [
+    {
+      "files": 1,
+      "source_bytes": 33554432,
+      "trial": 1,
+      "samples": [
+        {
+          "phase": "baseline",
+          "elapsed_seconds": 2.7644485410128254,
+          "worker_seconds": 2.753765458,
+          "growth": {
+            "objects": 412,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 1,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "unchanged",
+          "elapsed_seconds": 0.4477107920101844,
+          "worker_seconds": 0.131109167,
+          "growth": {
+            "objects": 412,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 1,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 0,
+          "elapsed_seconds": 0.4833541660045739,
+          "worker_seconds": 0.166646834,
+          "growth": {
+            "objects": 413,
+            "payload_bytes": 33688689,
+            "snapshots": 2,
+            "manifests": 2,
+            "trees": 2
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 1,
+          "elapsed_seconds": 0.4957894590042997,
+          "worker_seconds": 0.179096917,
+          "growth": {
+            "objects": 414,
+            "payload_bytes": 33822946,
+            "snapshots": 3,
+            "manifests": 3,
+            "trees": 3
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 2,
+          "elapsed_seconds": 0.49012395800673403,
+          "worker_seconds": 0.173501,
+          "growth": {
+            "objects": 415,
+            "payload_bytes": 33957203,
+            "snapshots": 4,
+            "manifests": 4,
+            "trees": 4
+          }
+        },
+        {
+          "phase": "burst_25",
+          "elapsed_seconds": 0.4855161669838708,
+          "since_first_write_seconds": 0.48646549999830313,
+          "worker_seconds": 0.170653667,
+          "growth": {
+            "objects": 416,
+            "payload_bytes": 34091460,
+            "snapshots": 5,
+            "manifests": 5,
+            "trees": 5
+          }
+        }
+      ],
+      "idle": {
+        "interval_seconds": 2.014099874999374,
+        "before": {
+          "cpu_seconds": 1.16,
+          "rss_bytes": 11730944,
+          "ps_output": "0:01.16  11456"
+        },
+        "after": {
+          "cpu_seconds": 1.16,
+          "rss_bytes": 11730944,
+          "ps_output": "0:01.16  11456"
+        },
+        "cpu_delta_seconds": 0.0,
+        "one_core_percent": 0.0
+      },
+      "restart": {
+        "elapsed_seconds": 0.10743262499454431,
+        "worker_seconds": 0.10328591700000002
+      },
+      "outcomes": [
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 2753.7654580000003,
+          "kind": "snapshot_created",
+          "reason": "baseline",
+          "root_hash": "51cefdaa27dc4f5868b483582472768e4772aef3706a9a3396a553d3c4fc180a",
+          "snapshot_id": "6537d59b56cd41407257f643a7958d047c2d9530290d854bb80b4f179bf9ce01"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 131.10916699999999,
+          "kind": "skipped_identical",
+          "reason": "changes",
+          "root_hash": "51cefdaa27dc4f5868b483582472768e4772aef3706a9a3396a553d3c4fc180a",
+          "snapshot_id": "6537d59b56cd41407257f643a7958d047c2d9530290d854bb80b4f179bf9ce01"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 166.64683399999998,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "194733d39e0ec8b75745941ba6756c5929fff4858256c0703fc009de41f47789",
+          "snapshot_id": "5e94a6d29ac35a06b045c23875cc8366277699f84ee40d2d76cef038d66f3507"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 179.096917,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "d1c6c905fe6a28b4a63f3020ac971800597065d34b081bfa110b93cce2f109eb",
+          "snapshot_id": "86dd6814c96f96bb70b00bb444627607da14dd21acc5ec8b774c34f150801526"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 173.50099999999998,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "a682da25175ec988f0df4b714d3e30b622bd20bd3b6b6b9a03a9caff47c6c3b6",
+          "snapshot_id": "1545039f0248df9dd14b891c89994b0833d0c31a07333d28042d97f52477600d"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 170.653667,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "dd4e9b7da59b8ca87c2bc2e6004cd6aa43f43c0827ce644765a0ab6ca71f254e",
+          "snapshot_id": "115ba95e592fb19a5bbb61e8e0173e0606d2080a7679458415e11d5fccc936a0"
+        }
+      ],
+      "historical_restores_verified": 5
+    },
+    {
+      "files": 1,
+      "source_bytes": 33554432,
+      "trial": 2,
+      "samples": [
+        {
+          "phase": "baseline",
+          "elapsed_seconds": 2.714190792001318,
+          "worker_seconds": 2.710223667,
+          "growth": {
+            "objects": 412,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 1,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "unchanged",
+          "elapsed_seconds": 0.43532762498944066,
+          "worker_seconds": 0.118767916,
+          "growth": {
+            "objects": 412,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 1,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 0,
+          "elapsed_seconds": 0.49998033299925737,
+          "worker_seconds": 0.183287541,
+          "growth": {
+            "objects": 413,
+            "payload_bytes": 33688689,
+            "snapshots": 2,
+            "manifests": 2,
+            "trees": 2
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 1,
+          "elapsed_seconds": 0.5024301669909619,
+          "worker_seconds": 0.185801208,
+          "growth": {
+            "objects": 414,
+            "payload_bytes": 33822946,
+            "snapshots": 3,
+            "manifests": 3,
+            "trees": 3
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 2,
+          "elapsed_seconds": 0.4913365420070477,
+          "worker_seconds": 0.175619,
+          "growth": {
+            "objects": 415,
+            "payload_bytes": 33957203,
+            "snapshots": 4,
+            "manifests": 4,
+            "trees": 4
+          }
+        },
+        {
+          "phase": "burst_25",
+          "elapsed_seconds": 0.4906373330159113,
+          "since_first_write_seconds": 0.49147629202343524,
+          "worker_seconds": 0.174759917,
+          "growth": {
+            "objects": 416,
+            "payload_bytes": 34091460,
+            "snapshots": 5,
+            "manifests": 5,
+            "trees": 5
+          }
+        }
+      ],
+      "idle": {
+        "interval_seconds": 2.0122730410075746,
+        "before": {
+          "cpu_seconds": 1.2,
+          "rss_bytes": 10633216,
+          "ps_output": "0:01.20  10384"
+        },
+        "after": {
+          "cpu_seconds": 1.2,
+          "rss_bytes": 10633216,
+          "ps_output": "0:01.20  10384"
+        },
+        "cpu_delta_seconds": 0.0,
+        "one_core_percent": 0.0
+      },
+      "restart": {
+        "elapsed_seconds": 0.107492542010732,
+        "worker_seconds": 0.103427917
+      },
+      "outcomes": [
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 2710.223667,
+          "kind": "snapshot_created",
+          "reason": "baseline",
+          "root_hash": "51cefdaa27dc4f5868b483582472768e4772aef3706a9a3396a553d3c4fc180a",
+          "snapshot_id": "1d267780b55b73705b20d2ee554dbeba1137c15b3321a58dcd467427d5ae9fc3"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 118.767916,
+          "kind": "skipped_identical",
+          "reason": "changes",
+          "root_hash": "51cefdaa27dc4f5868b483582472768e4772aef3706a9a3396a553d3c4fc180a",
+          "snapshot_id": "1d267780b55b73705b20d2ee554dbeba1137c15b3321a58dcd467427d5ae9fc3"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 183.287541,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "194733d39e0ec8b75745941ba6756c5929fff4858256c0703fc009de41f47789",
+          "snapshot_id": "26f7fdd7904e6a297e69252ce7208e71981f9da501cc5925ac6249bdc68c10a9"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 185.801208,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "d1c6c905fe6a28b4a63f3020ac971800597065d34b081bfa110b93cce2f109eb",
+          "snapshot_id": "68cd1f1b197a69eea942452aeb21776cd3ccc9f3a3ad5ff1953b2966c265fe87"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 175.619,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "a682da25175ec988f0df4b714d3e30b622bd20bd3b6b6b9a03a9caff47c6c3b6",
+          "snapshot_id": "c0f67187176a363da580433c3ca23b4afb47437f59a36990008769de87b9eedf"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 174.75991699999997,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "dd4e9b7da59b8ca87c2bc2e6004cd6aa43f43c0827ce644765a0ab6ca71f254e",
+          "snapshot_id": "91fd26e9928dade00eb6737b5ca5a42cadec5bbe0f057931c093feb0cbeb8200"
+        }
+      ],
+      "historical_restores_verified": 5
+    },
+    {
+      "files": 1,
+      "source_bytes": 33554432,
+      "trial": 3,
+      "samples": [
+        {
+          "phase": "baseline",
+          "elapsed_seconds": 2.7051297500147484,
+          "worker_seconds": 2.7011952089999998,
+          "growth": {
+            "objects": 412,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 1,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "unchanged",
+          "elapsed_seconds": 0.4420787919953,
+          "worker_seconds": 0.125471208,
+          "growth": {
+            "objects": 412,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 1,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 0,
+          "elapsed_seconds": 0.4953632090182509,
+          "worker_seconds": 0.178716,
+          "growth": {
+            "objects": 413,
+            "payload_bytes": 33688689,
+            "snapshots": 2,
+            "manifests": 2,
+            "trees": 2
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 1,
+          "elapsed_seconds": 0.5059657499950845,
+          "worker_seconds": 0.189431125,
+          "growth": {
+            "objects": 414,
+            "payload_bytes": 33822946,
+            "snapshots": 3,
+            "manifests": 3,
+            "trees": 3
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 2,
+          "elapsed_seconds": 0.5084420839848462,
+          "worker_seconds": 0.191804,
+          "growth": {
+            "objects": 415,
+            "payload_bytes": 33957203,
+            "snapshots": 4,
+            "manifests": 4,
+            "trees": 4
+          }
+        },
+        {
+          "phase": "burst_25",
+          "elapsed_seconds": 0.49966158298775554,
+          "since_first_write_seconds": 0.5005396670021582,
+          "worker_seconds": 0.183920959,
+          "growth": {
+            "objects": 416,
+            "payload_bytes": 34091460,
+            "snapshots": 5,
+            "manifests": 5,
+            "trees": 5
+          }
+        }
+      ],
+      "idle": {
+        "interval_seconds": 2.0146903749846388,
+        "before": {
+          "cpu_seconds": 1.25,
+          "rss_bytes": 10518528,
+          "ps_output": "0:01.25  10272"
+        },
+        "after": {
+          "cpu_seconds": 1.25,
+          "rss_bytes": 10518528,
+          "ps_output": "0:01.25  10272"
+        },
+        "cpu_delta_seconds": 0.0,
+        "one_core_percent": 0.0
+      },
+      "restart": {
+        "elapsed_seconds": 0.10692533399560489,
+        "worker_seconds": 0.102774
+      },
+      "outcomes": [
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 2701.195209,
+          "kind": "snapshot_created",
+          "reason": "baseline",
+          "root_hash": "51cefdaa27dc4f5868b483582472768e4772aef3706a9a3396a553d3c4fc180a",
+          "snapshot_id": "d036407026a725ccc65275ee8773d7cb537de94463a31677cf3d72cfdef29ca0"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 125.471208,
+          "kind": "skipped_identical",
+          "reason": "changes",
+          "root_hash": "51cefdaa27dc4f5868b483582472768e4772aef3706a9a3396a553d3c4fc180a",
+          "snapshot_id": "d036407026a725ccc65275ee8773d7cb537de94463a31677cf3d72cfdef29ca0"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 178.716,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "194733d39e0ec8b75745941ba6756c5929fff4858256c0703fc009de41f47789",
+          "snapshot_id": "73df7cf924acb5062214bf86c36595eeb444bb4090457a34b64988c867484416"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 189.431125,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "d1c6c905fe6a28b4a63f3020ac971800597065d34b081bfa110b93cce2f109eb",
+          "snapshot_id": "cce94bda6bbc0270aca475024974a817c194a3af8743c8a0e79239cd2d27a2a0"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 191.804,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "a682da25175ec988f0df4b714d3e30b622bd20bd3b6b6b9a03a9caff47c6c3b6",
+          "snapshot_id": "70157cdbc82848f3ea185f51b4edafab74b58b6444f59701eef3a7755918c8c4"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 183.92095899999998,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "dd4e9b7da59b8ca87c2bc2e6004cd6aa43f43c0827ce644765a0ab6ca71f254e",
+          "snapshot_id": "b1e361518ba69125a13fba21ab523329d1999eb31dbd4a9cc1ae97019b726dae"
+        }
+      ],
+      "historical_restores_verified": 5
+    },
+    {
+      "files": 256,
+      "source_bytes": 33554432,
+      "trial": 1,
+      "samples": [
+        {
+          "phase": "baseline",
+          "elapsed_seconds": 4.786139167001238,
+          "worker_seconds": 4.781787334,
+          "growth": {
+            "objects": 567,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 256,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "unchanged",
+          "elapsed_seconds": 0.46338787497370504,
+          "worker_seconds": 0.146735583,
+          "growth": {
+            "objects": 567,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 256,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 0,
+          "elapsed_seconds": 0.5146098749828525,
+          "worker_seconds": 0.197942417,
+          "growth": {
+            "objects": 568,
+            "payload_bytes": 33641409,
+            "snapshots": 2,
+            "manifests": 257,
+            "trees": 2
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 1,
+          "elapsed_seconds": 0.49682845899951644,
+          "worker_seconds": 0.180391125,
+          "growth": {
+            "objects": 569,
+            "payload_bytes": 33728386,
+            "snapshots": 3,
+            "manifests": 258,
+            "trees": 3
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 2,
+          "elapsed_seconds": 0.5024855840019882,
+          "worker_seconds": 0.186109666,
+          "growth": {
+            "objects": 570,
+            "payload_bytes": 33815363,
+            "snapshots": 4,
+            "manifests": 259,
+            "trees": 4
+          }
+        },
+        {
+          "phase": "burst_25",
+          "elapsed_seconds": 0.5191647500032559,
+          "since_first_write_seconds": 0.5199984170030802,
+          "worker_seconds": 0.202882167,
+          "growth": {
+            "objects": 571,
+            "payload_bytes": 33902340,
+            "snapshots": 5,
+            "manifests": 260,
+            "trees": 5
+          }
+        }
+      ],
+      "idle": {
+        "interval_seconds": 2.013716082990868,
+        "before": {
+          "cpu_seconds": 1.62,
+          "rss_bytes": 12173312,
+          "ps_output": "0:01.62  11888"
+        },
+        "after": {
+          "cpu_seconds": 1.62,
+          "rss_bytes": 12173312,
+          "ps_output": "0:01.62  11888"
+        },
+        "cpu_delta_seconds": 0.0,
+        "one_core_percent": 0.0
+      },
+      "restart": {
+        "elapsed_seconds": 0.13224683300359175,
+        "worker_seconds": 0.123340833
+      },
+      "outcomes": [
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 4781.787334,
+          "kind": "snapshot_created",
+          "reason": "baseline",
+          "root_hash": "645c30dae8f2cd7feab82ebc63547bbeb3aae4e0b0801e7f3404544b67391a27",
+          "snapshot_id": "0d9fe838b327793e476d0c61d8a761f993a33ccddf77ff94c14afad25b817486"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 146.735583,
+          "kind": "skipped_identical",
+          "reason": "changes",
+          "root_hash": "645c30dae8f2cd7feab82ebc63547bbeb3aae4e0b0801e7f3404544b67391a27",
+          "snapshot_id": "0d9fe838b327793e476d0c61d8a761f993a33ccddf77ff94c14afad25b817486"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 197.942417,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "a10daab7e1f812994047985d817e613afb808ef07ace4103fde710c60cad7797",
+          "snapshot_id": "91a184b0d1981def9f43efa71e6c96ce60f6de51ea456c7292e5be0a90cb0831"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 180.39112500000002,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "f4d6cf2b34a117a8c9b61153d8e2e99b6465a5fa31aa7b5d7dfb8ebfa55f3e98",
+          "snapshot_id": "3761c3f7bf7e9bbfaa2f35e512c8cc1111c66e0a17f824bc630f478b0b0288d6"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 186.109666,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "be7deb916f17967c6d36cfb9d371e7ce43058844feb7a8130cbbb7ad02fcddad",
+          "snapshot_id": "2d4b1029c3ef37187e4c830bb44414ee335ee9ac87c1832090428e26edf9c45d"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 202.882167,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "00cef0999460e5439b58b3c6e558051b65f4b2e494cb84c5c3bbf6638370cd3c",
+          "snapshot_id": "8dc2e098f4fc7c1e6b3dac62c3be2359a3b910c4aba90c367cc263a41d34bd34"
+        }
+      ],
+      "historical_restores_verified": 5
+    },
+    {
+      "files": 256,
+      "source_bytes": 33554432,
+      "trial": 2,
+      "samples": [
+        {
+          "phase": "baseline",
+          "elapsed_seconds": 4.832004832976963,
+          "worker_seconds": 4.827662417,
+          "growth": {
+            "objects": 567,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 256,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "unchanged",
+          "elapsed_seconds": 0.45184420800069347,
+          "worker_seconds": 0.135243292,
+          "growth": {
+            "objects": 567,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 256,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 0,
+          "elapsed_seconds": 0.5106998340052087,
+          "worker_seconds": 0.193965375,
+          "growth": {
+            "objects": 568,
+            "payload_bytes": 33641409,
+            "snapshots": 2,
+            "manifests": 257,
+            "trees": 2
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 1,
+          "elapsed_seconds": 0.507744458009256,
+          "worker_seconds": 0.197799042,
+          "growth": {
+            "objects": 569,
+            "payload_bytes": 33728386,
+            "snapshots": 3,
+            "manifests": 258,
+            "trees": 3
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 2,
+          "elapsed_seconds": 0.5038582920096815,
+          "worker_seconds": 0.187669417,
+          "growth": {
+            "objects": 570,
+            "payload_bytes": 33815363,
+            "snapshots": 4,
+            "manifests": 259,
+            "trees": 4
+          }
+        },
+        {
+          "phase": "burst_25",
+          "elapsed_seconds": 0.49694808400818147,
+          "since_first_write_seconds": 0.4976565840188414,
+          "worker_seconds": 0.180979917,
+          "growth": {
+            "objects": 571,
+            "payload_bytes": 33902340,
+            "snapshots": 5,
+            "manifests": 260,
+            "trees": 5
+          }
+        }
+      ],
+      "idle": {
+        "interval_seconds": 2.015647957974579,
+        "before": {
+          "cpu_seconds": 1.63,
+          "rss_bytes": 10387456,
+          "ps_output": "0:01.63  10144"
+        },
+        "after": {
+          "cpu_seconds": 1.63,
+          "rss_bytes": 10387456,
+          "ps_output": "0:01.63  10144"
+        },
+        "cpu_delta_seconds": 0.0,
+        "one_core_percent": 0.0
+      },
+      "restart": {
+        "elapsed_seconds": 0.1275538339978084,
+        "worker_seconds": 0.121312791
+      },
+      "outcomes": [
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 4827.662417,
+          "kind": "snapshot_created",
+          "reason": "baseline",
+          "root_hash": "645c30dae8f2cd7feab82ebc63547bbeb3aae4e0b0801e7f3404544b67391a27",
+          "snapshot_id": "a6daba9e321425254ec6cd3ce0d5789003fe55d7abc82c8588c89befa9fd01e3"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 135.243292,
+          "kind": "skipped_identical",
+          "reason": "changes",
+          "root_hash": "645c30dae8f2cd7feab82ebc63547bbeb3aae4e0b0801e7f3404544b67391a27",
+          "snapshot_id": "a6daba9e321425254ec6cd3ce0d5789003fe55d7abc82c8588c89befa9fd01e3"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 193.965375,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "a10daab7e1f812994047985d817e613afb808ef07ace4103fde710c60cad7797",
+          "snapshot_id": "9af620ef99244a2232457845b2bdb31b79f857252fd0df6480ec04f8cc892bdd"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 197.79904200000001,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "f4d6cf2b34a117a8c9b61153d8e2e99b6465a5fa31aa7b5d7dfb8ebfa55f3e98",
+          "snapshot_id": "b69a8902a309b0e4fbd9a91d8975a34d5b6acb926bcf456b157a44e7323a2650"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 187.669417,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "be7deb916f17967c6d36cfb9d371e7ce43058844feb7a8130cbbb7ad02fcddad",
+          "snapshot_id": "e65c1f0fea4a8c55e6f88613fb9f5ce86ddd9b97f849b949962ced900c017afe"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 180.979917,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "00cef0999460e5439b58b3c6e558051b65f4b2e494cb84c5c3bbf6638370cd3c",
+          "snapshot_id": "d0db7ad63ea2f6a23c7f0a528ca93683e4b548331525e061558474d6bc89001c"
+        }
+      ],
+      "historical_restores_verified": 5
+    },
+    {
+      "files": 256,
+      "source_bytes": 33554432,
+      "trial": 3,
+      "samples": [
+        {
+          "phase": "baseline",
+          "elapsed_seconds": 4.8878924589953385,
+          "worker_seconds": 4.883554416,
+          "growth": {
+            "objects": 567,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 256,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "unchanged",
+          "elapsed_seconds": 0.4549345420091413,
+          "worker_seconds": 0.138288083,
+          "growth": {
+            "objects": 567,
+            "payload_bytes": 33554432,
+            "snapshots": 1,
+            "manifests": 256,
+            "trees": 1
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 0,
+          "elapsed_seconds": 0.5066267499933019,
+          "worker_seconds": 0.1899995,
+          "growth": {
+            "objects": 568,
+            "payload_bytes": 33641409,
+            "snapshots": 2,
+            "manifests": 257,
+            "trees": 2
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 1,
+          "elapsed_seconds": 0.5116992920229677,
+          "worker_seconds": 0.195025791,
+          "growth": {
+            "objects": 569,
+            "payload_bytes": 33728386,
+            "snapshots": 3,
+            "manifests": 258,
+            "trees": 3
+          }
+        },
+        {
+          "phase": "edit",
+          "edit": 2,
+          "elapsed_seconds": 0.5009528330119792,
+          "worker_seconds": 0.184275875,
+          "growth": {
+            "objects": 570,
+            "payload_bytes": 33815363,
+            "snapshots": 4,
+            "manifests": 259,
+            "trees": 4
+          }
+        },
+        {
+          "phase": "burst_25",
+          "elapsed_seconds": 0.49764608300756663,
+          "since_first_write_seconds": 0.49836358401807956,
+          "worker_seconds": 0.182809,
+          "growth": {
+            "objects": 571,
+            "payload_bytes": 33902340,
+            "snapshots": 5,
+            "manifests": 260,
+            "trees": 5
+          }
+        }
+      ],
+      "idle": {
+        "interval_seconds": 2.012437666009646,
+        "before": {
+          "cpu_seconds": 1.64,
+          "rss_bytes": 10108928,
+          "ps_output": "0:01.64   9872"
+        },
+        "after": {
+          "cpu_seconds": 1.64,
+          "rss_bytes": 10108928,
+          "ps_output": "0:01.64   9872"
+        },
+        "cpu_delta_seconds": 0.0,
+        "one_core_percent": 0.0
+      },
+      "restart": {
+        "elapsed_seconds": 0.13242608300060965,
+        "worker_seconds": 0.125144125
+      },
+      "outcomes": [
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 4883.554416,
+          "kind": "snapshot_created",
+          "reason": "baseline",
+          "root_hash": "645c30dae8f2cd7feab82ebc63547bbeb3aae4e0b0801e7f3404544b67391a27",
+          "snapshot_id": "e59557360d0873bd421fd22cb7c231511c695fafbd6ccda5d6e7c2c868f74a06"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 138.288083,
+          "kind": "skipped_identical",
+          "reason": "changes",
+          "root_hash": "645c30dae8f2cd7feab82ebc63547bbeb3aae4e0b0801e7f3404544b67391a27",
+          "snapshot_id": "e59557360d0873bd421fd22cb7c231511c695fafbd6ccda5d6e7c2c868f74a06"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 189.99949999999998,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "a10daab7e1f812994047985d817e613afb808ef07ace4103fde710c60cad7797",
+          "snapshot_id": "affd50b2ad1d6720b4a7cf6ae234031c06f3de2f156d923bffcd22b2ee8c1ed6"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 195.025791,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "f4d6cf2b34a117a8c9b61153d8e2e99b6465a5fa31aa7b5d7dfb8ebfa55f3e98",
+          "snapshot_id": "57b17956d09b6a3eaf8a8ca81381f3836e2e8c2c6c4aced9f98e0551146d7402"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 184.275875,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "be7deb916f17967c6d36cfb9d371e7ce43058844feb7a8130cbbb7ad02fcddad",
+          "snapshot_id": "4cc2cc44256a072f9cc5f403db19eb96111d63a3f311ce9b62a43512a41400a2"
+        },
+        {
+          "consistency": "two_pass_validated_observations",
+          "elapsed_ms": 182.809,
+          "kind": "snapshot_created",
+          "reason": "changes",
+          "root_hash": "00cef0999460e5439b58b3c6e558051b65f4b2e494cb84c5c3bbf6638370cd3c",
+          "snapshot_id": "11933269a8c99cdc8b40d11cd0d72ce92abf39f80ce9c1e7dbeb05d2f6981dd7"
+        }
+      ],
+      "historical_restores_verified": 5
+    }
+  ],
+  "engine_source_unchanged": true
+}

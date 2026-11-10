@@ -28,9 +28,10 @@ impl Running {
         Self::options(work, source, &[])
     }
     fn options(work: &Path, source: &str, options: &[&str]) -> Self {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_rewind"))
-            .args(["watch", source])
-            .args(options)
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "event_only_helper", "--nocapture"])
+            .env("REWIND_EVENT_SOURCE", source)
+            .env("REWIND_EVENT_OPTIONS", options.join(" "))
             .current_dir(work)
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -40,7 +41,10 @@ impl Running {
         let (tx, lines) = mpsc::channel();
         thread::spawn(move || {
             for line in BufReader::new(stdout).lines() {
-                let value: Value = serde_json::from_str(&line.unwrap()).unwrap();
+                let line = line.unwrap();
+                let Ok(value) = serde_json::from_str::<Value>(&line) else {
+                    continue;
+                };
                 if tx.send(value).is_err() {
                     break;
                 }
@@ -108,7 +112,7 @@ fn fixture() -> (tempfile::TempDir, ChunkStore, PathBuf) {
 }
 
 #[test]
-fn native_cli_logs_create_modify_rename_delete_nested_changes_and_ctrl_c() {
+fn event_logger_logs_create_modify_rename_delete_nested_changes_and_ctrl_c() {
     let (temp, store, source) = fixture();
     fs::write(source.join("existing.bin"), b"initial").unwrap();
     let mut run = Running::start(temp.path(), "source");
@@ -239,7 +243,7 @@ fn runtime_symlink_and_root_removal_fail_with_no_snapshots() {
 }
 
 #[test]
-fn cli_watching_dot_excludes_its_store_and_allows_concurrent_manual_capture() {
+fn event_logger_watching_dot_excludes_its_store_and_allows_concurrent_manual_capture() {
     let (temp, store, source) = fixture();
     let mut run = Running::start(temp.path(), ".");
     store.put(b"manual stored chunk").unwrap();
@@ -432,6 +436,51 @@ fn invalid_timing_options_are_rejected_before_startup() {
             .output()
             .unwrap();
         assert!(!out.status.success());
-        assert!(out.stdout.is_empty());
+        let error: Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(error["kind"], "error");
+        assert_eq!(error["fatal"], true);
+        assert_eq!(error["code"], "watch_setup");
+    }
+    for args in [vec!["watch"], vec!["watch", "missing-source"]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_rewind"))
+            .args(args)
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+        assert!(!out.status.success());
+        let value: Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(value["code"], "watch_setup");
+    }
+}
+
+// Preserve the event-only library contract while the product CLI now captures.
+#[test]
+fn event_only_helper() {
+    let Ok(source) = std::env::var("REWIND_EVENT_SOURCE") else {
+        return;
+    };
+    let options = std::env::var("REWIND_EVENT_OPTIONS").unwrap();
+    let mut quiet = 300;
+    let mut maximum = 2000;
+    let words: Vec<_> = options.split_whitespace().collect();
+    for pair in words.chunks(2) {
+        if pair[0] == "--debounce-ms" {
+            quiet = pair[1].parse().unwrap();
+        } else {
+            maximum = pair[1].parse().unwrap();
+        }
+    }
+    let store = ChunkStore::open(".rewind").unwrap();
+    let monitor = Monitor::start_with_config(
+        &store,
+        source,
+        rewind::watch::DebounceConfig::from_millis(quiet, maximum).unwrap(),
+    )
+    .unwrap();
+    let stop = monitor.stop_handle();
+    ctrlc::set_handler(move || stop.stop()).unwrap();
+    if let Err(error) = monitor.run(&mut std::io::stdout().lock()) {
+        eprintln!("event-only test helper: {error}");
+        std::process::exit(1);
     }
 }

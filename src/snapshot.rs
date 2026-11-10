@@ -3,6 +3,10 @@ use crate::{ChunkStore, Error, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+#[cfg(unix)]
+#[path = "snapshot_scan.rs"]
+pub(crate) mod scan;
+
 const MAX_RECORD_BYTES: usize = 64 * 1024;
 
 #[derive(Deserialize)]
@@ -141,7 +145,7 @@ pub fn create_snapshot(
 }
 
 #[cfg(unix)]
-mod unix {
+pub(crate) mod unix {
     use super::*;
     use crate::{
         chunking::ChunkSizes,
@@ -159,10 +163,12 @@ mod unix {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    use super::scan::{Scan, ScanMode};
+
     // Bounds recursion, open directory descriptors, and the stack. Root is level 0.
     const MAX_DEPTH: usize = 256;
 
-    fn io_at(path: &Path, error: impl Into<std::io::Error>) -> Error {
+    pub(super) fn io_at(path: &Path, error: impl Into<std::io::Error>) -> Error {
         let error = error.into();
         Error::Io(std::io::Error::new(
             error.kind(),
@@ -203,9 +209,20 @@ mod unix {
         let store = ChunkStore::open(store_path)?.begin_capture()?;
         let store_meta = fs::metadata(store.root())?;
         let identity = (store_meta.dev(), store_meta.ino());
-        let root_hash = capture_directory(&store, &root, &source, identity, 0)?;
+        let root_hash =
+            capture_directory(&store, &root, &source, identity, 0, &mut Scan::manual())?;
         store.object_barrier()?;
 
+        let record = publish_record(&store, root_hash, source_path)?;
+        store.finish_capture()?;
+        Ok(record)
+    }
+
+    pub(crate) fn publish_record(
+        store: &ChunkStore,
+        root_hash: String,
+        source_path: String,
+    ) -> Result<SnapshotRecord> {
         // Only now create/publish history metadata. Failed captures may leave
         // unreferenced objects, but no committed record pointing to partial work.
         let timestamp = SystemTime::now()
@@ -250,7 +267,6 @@ mod unix {
         }
         // Report cleanup failure accurately; the record may already be visible.
         nonce.close()?;
-        store.finish_capture()?;
         Ok(record)
     }
 
@@ -259,13 +275,17 @@ mod unix {
             .map_err(|_| Error::Invalid(format!("non-UTF-8 entry in {}", display.display())))
     }
 
-    fn capture_directory(
+    pub(super) fn capture_directory(
         store: &ChunkStore,
         directory: &File,
         display: &Path,
         store_identity: (u64, u64),
         depth: usize,
+        scan: &mut Scan<'_>,
     ) -> Result<String> {
+        scan.cancel()?;
+        let before = scan.metadata(directory)?;
+        scan.observe(display, &before)?;
         if depth > MAX_DEPTH {
             return Err(Error::Invalid(format!(
                 "directory depth exceeds {MAX_DEPTH}: {}",
@@ -273,8 +293,8 @@ mod unix {
             )));
         }
         let mut names = Vec::new();
-        for entry in Dir::read_from(directory).map_err(|e| io_at(display, e))? {
-            let entry = entry.map_err(|e| io_at(display, e))?;
+        for entry in Dir::read_from(directory).map_err(|e| scan.io(display, e))? {
+            let entry = entry.map_err(|e| scan.io(display, e))?;
             let name = entry.file_name();
             if name.to_bytes() == b"." || name.to_bytes() == b".." {
                 continue;
@@ -285,9 +305,10 @@ mod unix {
         names.sort();
         let mut entries = Vec::with_capacity(names.len());
         for name in names {
+            scan.cancel()?;
             let path = display.join(&name);
             let stat = rfs::statat(directory, name.as_str(), AtFlags::SYMLINK_NOFOLLOW)
-                .map_err(|e| io_at(&path, e))?;
+                .map_err(|e| scan.io(&path, e))?;
             let kind = FileType::from_raw_mode(stat.st_mode);
             let target = match kind {
                 FileType::Directory => {
@@ -297,40 +318,25 @@ mod unix {
                         OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                         Mode::empty(),
                     )
-                    .map_err(|e| io_at(&path, e))?
+                    .map_err(|e| scan.io(&path, e))?
                     .into();
-                    let meta = child.metadata()?;
+                    let meta = scan.metadata(&child)?;
                     if (meta.dev(), meta.ino()) == store_identity {
                         continue;
                     }
                     validate_name(&name)?;
                     EntryTarget::Directory {
-                        tree: capture_directory(store, &child, &path, store_identity, depth + 1)?,
+                        tree: capture_directory(
+                            store,
+                            &child,
+                            &path,
+                            store_identity,
+                            depth + 1,
+                            scan,
+                        )?,
                     }
                 }
-                FileType::RegularFile => {
-                    validate_name(&name)?;
-                    let file: File = rfs::openat(
-                        directory,
-                        name.as_str(),
-                        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-                        Mode::empty(),
-                    )
-                    .map_err(|e| io_at(&path, e))?
-                    .into();
-                    let manifest = store_open_file(store, file, ChunkSizes::default())?;
-                    let manifest_path = manifest.save(store)?;
-                    let hash = manifest_path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .ok_or_else(|| Error::Invalid("invalid stored manifest filename".into()))?
-                        .to_owned();
-                    hashing::validate_hash(&hash)?;
-                    EntryTarget::File {
-                        manifest: hash,
-                        length: manifest.length,
-                    }
-                }
+                FileType::RegularFile => capture_file(store, directory, &name, &path, scan)?,
                 _ => {
                     return Err(Error::Invalid(format!(
                         "symlinks and special files are unsupported: {}",
@@ -340,7 +346,82 @@ mod unix {
             };
             entries.push(DirectoryEntry::new(name, target)?);
         }
-        DirectoryNode::new(entries)?.save(store)
+        scan.unchanged(display, &before, &scan.metadata(directory)?)?;
+        let node = DirectoryNode::new(entries)?;
+        match scan.mode {
+            ScanMode::Manual | ScanMode::Persist => node.save(store),
+            ScanMode::Probe => node.hash(),
+            ScanMode::Verify => {
+                let id = node.hash()?;
+                DirectoryNode::load(store, &id)?;
+                Ok(id)
+            }
+        }
+    }
+
+    // Keep file-ingestion locals out of recursive directory stack frames.
+    fn capture_file(
+        store: &ChunkStore,
+        directory: &File,
+        name: &str,
+        path: &Path,
+        scan: &mut Scan<'_>,
+    ) -> Result<EntryTarget> {
+        validate_name(name)?;
+        let file: File = rfs::openat(
+            directory,
+            name,
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+            Mode::empty(),
+        )
+        .map_err(|e| scan.io(path, e))?
+        .into();
+        let before = scan.metadata(&file)?;
+        if scan.mode != ScanMode::Manual && !before.is_file() {
+            return Err(Error::Unstable(format!(
+                "file type changed: {}",
+                path.display()
+            )));
+        }
+        scan.observe(path, &before)?;
+        let manifest = if scan.mode == ScanMode::Manual {
+            store_open_file(
+                store,
+                file.try_clone().map_err(|e| scan.io(path, e))?,
+                ChunkSizes::default(),
+            )?
+        } else {
+            crate::manifest::ingest(&file, ChunkSizes::default(), true, |bytes| {
+                scan.cancel()?;
+                if scan.mode == ScanMode::Persist {
+                    return store.put(bytes);
+                }
+                let id = hashing::hash(bytes);
+                if scan.mode == ScanMode::Verify && store.get(&id)?.len() != bytes.len() {
+                    return Err(Error::Corrupt(id));
+                }
+                Ok(id)
+            })?
+        };
+        scan.unchanged(path, &before, &scan.metadata(&file)?)?;
+        let hash = if matches!(scan.mode, ScanMode::Manual | ScanMode::Persist) {
+            manifest
+                .save(store)?
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .ok_or_else(|| Error::Invalid("invalid manifest filename".into()))?
+                .to_owned()
+        } else {
+            let id = hashing::hash(&manifest.encoded_bytes()?);
+            if scan.mode == ScanMode::Verify {
+                crate::FileManifest::load_by_hash(store, &id)?;
+            }
+            id
+        };
+        Ok(EntryTarget::File {
+            manifest: hash,
+            length: manifest.length,
+        })
     }
 
     #[cfg(test)]
@@ -357,5 +438,29 @@ mod unix {
                 "ordinary"
             );
         }
+    }
+}
+
+/// Automatic capture uses two full passes and observable source-stability checks.
+/// It does not establish an atomic point-in-time filesystem state.
+#[derive(Debug)]
+pub enum AutomaticCapture {
+    Created(SnapshotRecord),
+    Unchanged(SnapshotRecord),
+}
+
+pub fn capture_automatic(
+    store: &ChunkStore,
+    source: impl AsRef<std::path::Path>,
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<AutomaticCapture> {
+    #[cfg(unix)]
+    {
+        scan::automatic(store, source.as_ref(), cancel, None)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (store, source, cancel);
+        Err(Error::Invalid("automatic capture requires Unix".into()))
     }
 }

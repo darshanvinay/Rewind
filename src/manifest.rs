@@ -8,7 +8,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -81,11 +81,7 @@ impl FileManifest {
     /// Publish serialized JSON under its content identity without replacement.
     pub fn save(&self, store: &ChunkStore) -> Result<PathBuf> {
         let writer = store.writer()?;
-        self.validate()?;
-        let bytes = serde_json::to_vec(self)?;
-        if bytes.len() > 64 * 1024 * 1024 {
-            return Err(Error::Invalid("manifest exceeds 64 MiB".into()));
-        }
+        let bytes = self.encoded_bytes()?;
         let path = store
             .root()
             .join("manifests")
@@ -103,6 +99,14 @@ impl FileManifest {
         )?;
         writer.finish()?;
         Ok(path)
+    }
+    pub(crate) fn encoded_bytes(&self) -> Result<Vec<u8>> {
+        self.validate()?;
+        let bytes = serde_json::to_vec(self)?;
+        if bytes.len() > 64 * 1024 * 1024 {
+            return Err(Error::Invalid("manifest exceeds 64 MiB".into()));
+        }
+        Ok(bytes)
     }
 }
 
@@ -132,6 +136,33 @@ pub(crate) fn store_open_file(
     if !file.metadata()?.is_file() {
         return Err(Error::Invalid("input must be a regular file".into()));
     }
+    ingest(file, sizes, false, |bytes| store.put(bytes))
+}
+
+// The read-only and persistent scanners share exactly this streaming algorithm.
+pub(crate) fn ingest(
+    file: impl Read,
+    sizes: ChunkSizes,
+    source_errors: bool,
+    mut chunk_hash: impl FnMut(&[u8]) -> Result<String>,
+) -> Result<FileManifest> {
+    sizes.validate()?;
+    let read_error = std::cell::Cell::new(None);
+    struct Tracked<'a, R> {
+        reader: R,
+        error: &'a std::cell::Cell<Option<std::io::ErrorKind>>,
+    }
+    impl<R: Read> Read for Tracked<'_, R> {
+        fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+            self.reader
+                .read(bytes)
+                .inspect_err(|e| self.error.set(Some(e.kind())))
+        }
+    }
+    let file = Tracked {
+        reader: file,
+        error: &read_error,
+    };
     let mut manifest = FileManifest {
         version: 1,
         algorithm: "fastcdc-2020-blake3".into(),
@@ -147,9 +178,14 @@ pub(crate) fn store_open_file(
         sizes.avg as usize,
         sizes.max as usize,
     ) {
-        let chunk = chunk.map_err(|e| Error::Chunking(e.to_string()))?;
+        let chunk = chunk.map_err(|e| {
+            if source_errors && let Some(kind) = read_error.get() {
+                return Error::SourceIo(std::io::Error::new(kind, e.to_string()));
+            }
+            Error::Chunking(e.to_string())
+        })?;
         hasher.update(&chunk.data);
-        let hash = store.put(&chunk.data)?;
+        let hash = chunk_hash(&chunk.data)?;
         manifest.length += chunk.data.len() as u64;
         manifest.chunks.push(ChunkRef {
             hash,

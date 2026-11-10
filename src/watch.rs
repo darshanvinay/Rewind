@@ -261,6 +261,10 @@ fn kind(kind: EventKind) -> &'static str {
 }
 
 #[cfg(unix)]
+#[path = "watch_auto.rs"]
+mod automatic;
+
+#[cfg(unix)]
 mod unix {
     use super::*;
     use crate::tree::validate_name;
@@ -336,7 +340,7 @@ mod unix {
                 store_identity: (m.dev(), m.ino()),
             })
         }
-        fn check_roots(&self) -> Result<()> {
+        pub(super) fn check_roots(&self) -> Result<()> {
             for (path, expected) in [
                 (&self.root, self.identity),
                 (&self.store, self.store_identity),
@@ -349,6 +353,12 @@ mod unix {
                 }
             }
             Ok(())
+        }
+        pub(super) fn root_identity(&self) -> (u64, u64) {
+            self.identity
+        }
+        pub(super) fn store_root(&self) -> PathBuf {
+            self.store.clone()
         }
         pub fn storage_filter(&self) -> StorageFilter {
             StorageFilter {
@@ -628,6 +638,15 @@ mod unix {
                     .is_err()
             );
         }
+    }
+}
+
+#[cfg(not(unix))]
+impl Monitor {
+    pub fn run_automatic(self, _output: &mut impl Write) -> Result<()> {
+        Err(Error::Invalid(
+            "automatic watching is supported only on Unix".into(),
+        ))
     }
 }
 

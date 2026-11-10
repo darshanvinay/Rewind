@@ -66,6 +66,46 @@ fn lock(root: &Path) -> Result<File> {
     Ok(file)
 }
 
+/// Automatic capture opens the existing lock without creating any namespace entry.
+/// Initialization already created and synced this permanent lock inode.
+pub(crate) fn lock_recovered(root: &Path, cancel: &AtomicBool) -> Result<File> {
+    use std::fs::TryLockError;
+    #[cfg(unix)]
+    let file: File = rustix::fs::openat(
+        rustix::fs::CWD,
+        root.join("writer.lock"),
+        rustix::fs::OFlags::RDWR
+            | rustix::fs::OFlags::NOFOLLOW
+            | rustix::fs::OFlags::NONBLOCK
+            | rustix::fs::OFlags::CLOEXEC,
+        rustix::fs::Mode::empty(),
+    )
+    .map_err(std::io::Error::from)?
+    .into();
+    #[cfg(not(unix))]
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(root.join("writer.lock"))?;
+    if !file.metadata()?.is_file() {
+        return Err(Error::Invalid("invalid writer lock".into()));
+    }
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(Error::Cancelled);
+        }
+        match file.try_lock() {
+            Ok(()) => break,
+            Err(TryLockError::WouldBlock) => {
+                std::thread::sleep(std::time::Duration::from_millis(25))
+            }
+            Err(TryLockError::Error(e)) => return Err(e.into()),
+        }
+    }
+    recover(root)?; // Failure leaves the marker; no caller may proceed to reuse.
+    Ok(file)
+}
+
 fn clear_marker(root: &Path) -> Result<()> {
     checkpoint("marker_cleanup")?;
     fs::remove_file(root.join(MARKER))?;
@@ -163,6 +203,21 @@ impl ChunkStore {
     pub(crate) fn begin_capture(mut self) -> Result<Self> {
         let guard = lock(self.root())?;
         prepare(self.root())?;
+        self.batch = Some(Batch {
+            _lock: guard,
+            dirty: Mutex::new(BTreeSet::new()),
+            ready: AtomicBool::new(false),
+            published: AtomicBool::new(false),
+        });
+        Ok(self)
+    }
+
+    pub(crate) fn begin_capture_locked(mut self, guard: File) -> Result<Self> {
+        // The caller owns the recovered exclusive lock; start mutation only now.
+        if !storage::publish(&self.root().join(MARKER), MARKER_BYTES)? {
+            return Err(Error::Invalid("pending marker unexpectedly exists".into()));
+        }
+        checkpoint("marker_durable")?;
         self.batch = Some(Batch {
             _lock: guard,
             dirty: Mutex::new(BTreeSet::new()),
@@ -276,6 +331,11 @@ pub(crate) fn checkpoint(_stage: &str) -> Result<()> {
 #[cfg(test)]
 pub(crate) fn checkpoint(stage: &str) -> Result<()> {
     faults::checkpoint(stage)
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_fault(stage: Option<&'static str>) {
+    faults::FAIL.with(|f| *f.borrow_mut() = stage.map(|s| (s, 0, false)));
 }
 
 #[cfg(test)]

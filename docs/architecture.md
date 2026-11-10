@@ -1,4 +1,4 @@
-# Rewind architecture — Phase 2 and Phase 3 Milestones A–B
+# Rewind architecture — Phase 2 and Phase 3 Milestones A–C
 
 ## Components and data flow
 
@@ -23,7 +23,9 @@ regular file -> FastCDC -> BLAKE3 chunks -> ordered file manifest
 | `transaction` | Advisory writer lock, pending-marker recovery and capture directory barriers. |
 | `manifest` | File recipes, ingestion, identity loading, reconstruction, file verify/restore. |
 | `tree` | Sorted directory nodes, canonical bytes, validation and content-addressed persistence. |
-| `snapshot` | Descriptor-relative capture and validated history loading/listing. |
+| `snapshot` | Shared descriptor-relative traversal and durable history publication. |
+| `snapshot::scan` | Read-only probe, verified/persistent second pass and temporary stability observations. |
+| `watch::automatic` | One capture worker, bounded controller work, generation-aware reconciliation and retries. |
 | `snapshot_restore` | Private staging-tree reconstruction and atomic no-replace publication. |
 | `diff` | Merkle pruning and relative-path content-change reports. |
 | `watch` | Native recursive intake, source validation/exclusion, bounded channel, timed receive loop and shutdown. |
@@ -296,8 +298,8 @@ ownership, ACLs, xattrs, sparse extent maps and hard-link relationships are not
 preserved; hard-linked sources restore as independent files. Source symlinks,
 FIFOs, sockets and devices are unsupported. Only macOS has been validated; capture
 is enabled on Unix, restore on macOS/Linux, and other-platform behavior is limited
-and unvalidated. Native event logging is available; automatic capture, retention,
-GC, snapshot rename detection and FUSE are absent.
+and unvalidated. Native monitoring and automatic capture are available; retention, GC,
+snapshot rename detection and FUSE are absent.
 
 ## Phase 3 Milestone A — event logging foundation (historical)
 
@@ -311,7 +313,7 @@ OS native notifications -> bounded event channel -> validated normalized hints [
     -> end-to-end reliability and workload measurements                     [E]
 ```
 
-A and B are implemented; the description below records the A foundation. Later milestones require approval; D additionally
+A, B and C are implemented; the description below records the A foundation. Later milestones require approval; D additionally
 requires reviewing its cache/invalidation design before any implementation.
 The watch command never calls snapshot creation, acquires a writer lock, performs
 pending-marker recovery, hashes source data or mutates storage. Concurrent manual
@@ -393,7 +395,7 @@ remain C–E work. Existing Phase 2
 formats, synchronization, verified reuse and crash-recovery behavior are unchanged.
 
 
-## Phase 3 Milestone B — debounced hint batches
+## Phase 3 Milestone B — debounced hint batches (historical)
 
 `debounce.rs` is a private, filesystem-independent state machine. `DebounceConfig`
 is publicly re-exported through `watch`, and `Monitor::start_with_config` supplements
@@ -471,3 +473,109 @@ complete final drain or interrupted-write filesystem state. A synchronous blocke
 stdout/validation operation can delay termination; no extra output-worker subsystem
 was introduced. Existing writer locking, pending-marker recovery and file/directory
 sync ordering remain unchanged. Milestone C and later milestones require approval.
+
+
+## Phase 3 Milestone C — automatic durable history
+
+The `watch` CLI calls `Monitor::run_automatic`; the event-only `run` method remains
+available. `snapshot::capture_automatic` returns `AutomaticCapture::Created(record)`
+or `Unchanged(record)`, with typed `Unstable`, `Cancelled` and `SourceIo` errors.
+Manual `create_snapshot` keeps its one-pass, always-new-record semantics. No object
+format or hash rule changed. Only automatic capture adds the two-pass stability
+policy; this is not incremental processing.
+
+The existing `snapshot::unix::capture_directory` traversal is shared through a scan
+mode: Manual, Probe, Verify or Persist. File ingestion uses one FastCDC streaming
+routine and whole-file hashing pipeline. Manifest `encoded_bytes()` is shared with
+save; nodes use the existing canonical constructor/hash. Probe computes identities
+without calling put/save/publish. Verify also loads every referenced store chunk,
+manifest and node with existing bounded integrity checks. Persist uses the existing
+verified-reuse APIs. A leaf helper keeps ingestion locals out of recursive directory
+frames, preserving the 256-level limit on ordinary Rust test thread stacks.
+
+Automatic attempt ordering:
+
+1. Open/canonicalize the source with NOFOLLOW and verify its pinned identity for
+   monitoring. Open the permanent existing writer lock and wait interruptibly with
+   `try_lock` and 25-ms sleeps, then perform required pending-marker recovery.
+   Missing lock files require initialization; the automatic lock path does not
+   create a namespace entry. The store remains trusted/stable.
+2. Under that exclusive lock, select the latest validated history record for the
+   canonical source path using existing timestamp/ID history ordering. Malformed
+   recognized records fail closed, even if unrelated to this source. Source identity
+   is pinned for a monitoring session; records retain only their v1 source path,
+   not an across-restart filesystem inode identity.
+3. Probe all source bytes and build the first root, collecting identity, mode,
+   length, mtime/ctime with nanoseconds for source files/directories. Check metadata
+   around each read/traversal. Observation storage is bounded to 100,000 entries and
+   16 MiB of absolute path bytes; it is discarded after the attempt, not cached for
+   incremental reuse.
+4. If the root matches the latest record, perform a second source traversal in
+   Verify mode, checking all stored objects too. Require matching roots and stamps,
+   then revalidate every observed path through no-follow relative opens and verify
+   that the source path still names the opened root. Return Unchanged without a
+   new marker or record. Recovery of an already-present marker can still write.
+5. Otherwise durably publish the pending marker under the same lock. Perform the
+   second pass in Persist mode, require matching roots/stamps, complete the object
+   directory barrier, revalidate observed metadata and check cancellation. Only
+   then publish/sync the record through the existing no-clobber protocol and clear
+   the marker through normal successful completion. Failed attempts retain any
+   marker; retries enter recovery rather than inventing rollback.
+
+The read-only probe and skipped path do not create tempfiles, put chunks, save
+metadata or start a new transaction marker. A whole-store bytes/metadata inventory
+test pins this property. “Latest” preserves existing timestamp/ID ordering, including
+its wall-clock limitations. Comparing only the latest source record allows a source
+returned to an older historical root to produce a new history record.
+
+Matching passes and metadata checks **do not establish an atomic point-in-time
+snapshot**. Metadata can change between checks; content can change and change back;
+permissions/timestamp resolution and hostile mutations can defeat observations.
+There remains a final-check/publication TOCTOU window. A deterministic test changes
+the source in that window: the first archive contains the valid earlier bytes and
+a retained event drives a second archive of the new bytes. Unreported native loss
+can prevent a follow-up; no filesystem freeze, watcher replay guarantee or periodic
+full reconciliation timer is provided. Quiescent input is necessary when a coherent
+logical source state is required.
+
+The controller owns debounce state while a single worker owns each synchronous
+capture. Job and completion channels each have capacity one, with at most one job
+active; further batches coalesce into bounded pending work. A completion is placed
+in its separate channel before a nonblocking wake enters the existing bounded
+inbox. Even a full inbox is already sufficient to wake the consumer. The worker
+uses the same stop flag and its owned session/lock guard drops on failure. Dropping
+the controller cancels and joins the worker; a current fsync/final commit can delay
+shutdown and may finish successfully. No incomplete record is intentionally exposed.
+
+The controller increments a checked generation for normalized inputs and consumed
+loss indications. A job records its dispatch generation. Success acknowledges old
+reconciliation reasons only when that generation still matches, no newer pending
+batch/work exists and no overflow flag is set. Otherwise it leaves/schedules full
+reconciliation. A racing overflow remains out of band until consumed, so clearing
+an older reason cannot erase newer loss. Capture success is not acknowledgement of
+all later notifications. Every C job scans the full tree, including overflow jobs;
+there is no event-driven “unchanged” shortcut.
+
+Only typed source errors at traversal/read boundaries are retryable; storage put,
+metadata decode, verification, synchronization and recovery errors keep their fatal
+provenance. NotFound, Interrupted, WouldBlock, PermissionDenied and NotADirectory
+source errors are retried alongside detected instability. Up to three attempts use
+100/300-ms short delays; after three failures, deferred cycles use capped 1..30-s
+backoff. The controller still consumes events while waiting. Unsupported entries,
+root/store replacement and backend errors fail closed with JSON diagnostics. An
+error after commit/cleanup can mean a complete snapshot is already visible; no
+rollback guarantee is added.
+
+Rust channels act like bounded Python queues; ownership keeps worker jobs/results
+and lock guards alive for exactly their operation. An enum makes created/unchanged
+outcomes explicit rather than overloading a nullable ID. `Cell` records only the
+local reader's I/O error provenance, so an error from chunk persistence cannot be
+mistaken for a transient read failure. No unsafe Rust or new dependency was added.
+Source/store writes remain serialized by the existing advisory lock contract.
+
+Confirmed store-only notifications are filtered before queueing; coarse ancestor
+hints are conservatively scanned. Because successful identical checks write no new
+marker/objects/records, those hints do not sustain a write/notification feedback
+loop. On restart, a baseline is always scanned and compared under the writer lock.
+No daemon, retention, GC, incremental cache or Phase 4 work was added. Milestone D
+requires a separate cache/invalidation design and approval.
