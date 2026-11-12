@@ -155,6 +155,7 @@ def run(binary, work, payload, files, trial, idle_seconds):
         assert counts(work)['snapshots'] == 5 and not (work/'.rewind/capture.pending').exists()
         return {'files':files,'source_bytes':len(payload),'trial':trial,'samples':samples,'idle':idle,'restart':restart,
                 'outcomes':[v for v in watcher.lines if v.get('kind') in ['snapshot_created','skipped_identical']],
+                'shadow_diagnostics':[v for v in watcher.lines if v.get('kind') == 'shadow'],
                 'historical_restores_verified':len(versions)}
     finally:
         watcher.close()

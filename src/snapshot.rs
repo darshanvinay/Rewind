@@ -300,6 +300,7 @@ pub(crate) mod unix {
                 continue;
             }
             let name = entry_name(name, display)?;
+            scan.diagnostic_name(name.len())?;
             names.push(name.to_owned());
         }
         names.sort();
@@ -348,6 +349,7 @@ pub(crate) mod unix {
         }
         scan.unchanged(display, &before, &scan.metadata(directory)?)?;
         let node = DirectoryNode::new(entries)?;
+        scan.seed_directory(display, &before, &node);
         match scan.mode {
             ScanMode::Manual | ScanMode::Persist => node.save(store),
             ScanMode::Probe => node.hash(),
@@ -418,10 +420,12 @@ pub(crate) mod unix {
             }
             id
         };
-        Ok(EntryTarget::File {
+        let target = EntryTarget::File {
             manifest: hash,
             length: manifest.length,
-        })
+        };
+        scan.seed_file(path, &before, target.clone());
+        Ok(target)
     }
 
     #[cfg(test)]

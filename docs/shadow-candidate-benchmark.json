@@ -1,0 +1,415 @@
+{
+  "cases": [
+    {
+      "burst_100": {
+        "candidate_ms": 2.042,
+        "full_root_scan_ms": 15.645209,
+        "root_matches": true,
+        "stats": {
+          "directories_listed": 2,
+          "entries_reused": 9,
+          "files_read": 100,
+          "nodes_rebuilt": 2,
+          "source_bytes": 409600
+        }
+      },
+      "cache_charged_bytes": 896124,
+      "cache_entries": 1011,
+      "directory_rename_samples": [
+        {
+          "candidate_ms": 2.539375,
+          "full_root_scan_ms": 21.560667,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 9,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        },
+        {
+          "candidate_ms": 2.5084999999999997,
+          "full_root_scan_ms": 21.561,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 9,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        },
+        {
+          "candidate_ms": 2.5416250000000002,
+          "full_root_scan_ms": 21.598166,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 9,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        }
+      ],
+      "edit_samples": [
+        {
+          "candidate_ms": 1.0155830000000001,
+          "full_root_scan_ms": 15.305875,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 108,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 0
+        },
+        {
+          "candidate_ms": 0.970208,
+          "full_root_scan_ms": 15.435583,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 108,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 1
+        },
+        {
+          "candidate_ms": 0.9675419999999999,
+          "full_root_scan_ms": 15.429833,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 108,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 2
+        },
+        {
+          "candidate_ms": 0.972291,
+          "full_root_scan_ms": 15.427791,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 108,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 3
+        },
+        {
+          "candidate_ms": 0.972459,
+          "full_root_scan_ms": 15.468917000000001,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 108,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 4
+        }
+      ],
+      "files": 1000,
+      "snapshots_created": 0,
+      "source_bytes": 4096000,
+      "warmup_ms": 19.149916
+    },
+    {
+      "burst_100": {
+        "candidate_ms": 3.1753329999999997,
+        "full_root_scan_ms": 185.85375000000002,
+        "root_matches": true,
+        "stats": {
+          "directories_listed": 2,
+          "entries_reused": 99,
+          "files_read": 100,
+          "nodes_rebuilt": 2,
+          "source_bytes": 409600
+        }
+      },
+      "cache_charged_bytes": 8952024,
+      "cache_entries": 10101,
+      "directory_rename_samples": [
+        {
+          "candidate_ms": 4.090375,
+          "full_root_scan_ms": 232.08487499999998,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 99,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        },
+        {
+          "candidate_ms": 3.968333,
+          "full_root_scan_ms": 231.94183299999997,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 99,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        },
+        {
+          "candidate_ms": 4.15975,
+          "full_root_scan_ms": 237.194625,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 99,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        }
+      ],
+      "edit_samples": [
+        {
+          "candidate_ms": 2.033458,
+          "full_root_scan_ms": 183.554958,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 198,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 0
+        },
+        {
+          "candidate_ms": 2.072375,
+          "full_root_scan_ms": 185.157042,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 198,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 1
+        },
+        {
+          "candidate_ms": 2.0059169999999997,
+          "full_root_scan_ms": 187.69212499999998,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 198,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 2
+        },
+        {
+          "candidate_ms": 2.029084,
+          "full_root_scan_ms": 179.717375,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 198,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 3
+        },
+        {
+          "candidate_ms": 2.0171669999999997,
+          "full_root_scan_ms": 180.984083,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 198,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 4
+        }
+      ],
+      "files": 10000,
+      "snapshots_created": 0,
+      "source_bytes": 40960000,
+      "warmup_ms": 201.01075
+    },
+    {
+      "burst_100": {
+        "candidate_ms": 20.128375000000002,
+        "full_root_scan_ms": 5449.25175,
+        "root_matches": true,
+        "stats": {
+          "directories_listed": 2,
+          "entries_reused": 999,
+          "files_read": 100,
+          "nodes_rebuilt": 2,
+          "source_bytes": 409600
+        }
+      },
+      "cache_charged_bytes": 89511024,
+      "cache_entries": 101001,
+      "directory_rename_samples": [
+        {
+          "candidate_ms": 24.969417,
+          "full_root_scan_ms": 5033.981625,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 999,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        },
+        {
+          "candidate_ms": 19.034542000000002,
+          "full_root_scan_ms": 4748.9694580000005,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 999,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        },
+        {
+          "candidate_ms": 20.496084,
+          "full_root_scan_ms": 4831.688040999999,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 999,
+            "files_read": 100,
+            "nodes_rebuilt": 2,
+            "source_bytes": 409600
+          }
+        }
+      ],
+      "edit_samples": [
+        {
+          "candidate_ms": 17.769709000000002,
+          "full_root_scan_ms": 4666.539125,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 1098,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 0
+        },
+        {
+          "candidate_ms": 17.756874999999997,
+          "full_root_scan_ms": 4701.678833,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 1098,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 1
+        },
+        {
+          "candidate_ms": 18.645167,
+          "full_root_scan_ms": 4749.655542,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 1098,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 2
+        },
+        {
+          "candidate_ms": 16.237667000000002,
+          "full_root_scan_ms": 4750.720709,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 1098,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 3
+        },
+        {
+          "candidate_ms": 16.732875,
+          "full_root_scan_ms": 4904.480542,
+          "root_matches": true,
+          "stats": {
+            "directories_listed": 2,
+            "entries_reused": 1098,
+            "files_read": 1,
+            "nodes_rebuilt": 2,
+            "source_bytes": 4096
+          },
+          "trial": 4
+        }
+      ],
+      "files": 100000,
+      "snapshots_created": 0,
+      "source_bytes": 409600000,
+      "warmup_ms": 4930.04325
+    }
+  ],
+  "method": "Warm local 4 KiB unique files, fanout 100; 5 edits, 3 directory renames, 100-file burst; diagnostic full root scan is one read-only pass, NOT C's two-pass/archive/durability validation",
+  "measured_at_utc": "2026-11-10T22:50:11.790836+00:00",
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "cpu": "Apple M4",
+    "memory_bytes": "17179869184",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "binary_sha256": "9714a06c2a232bad2eff6107dfed656fbab99ecfbda7b873ce5fb93bb601ca6c"
+  },
+  "source_sha256": {
+    "src/chunking.rs": "74648e5f04c210df51a48afcf4d376d634a8417641a79cb6a622b9a2794a5aed",
+    "src/debounce.rs": "f64e1f7ead98c92541d4e9b65ec783927a94ecd57e0d5e762f7dc7b207f98b3b",
+    "src/diff.rs": "b881edd9d3c8ee39e0093703289f63ab4f4e8e98605efb1995b107244279d2d3",
+    "src/error.rs": "8e076bb957fd92f8a752d172b7e68bb5e929f7db2ab2a532ed0da61b039e2feb",
+    "src/hashing.rs": "f71aa8d158e28b27507f2c3d4a04fdca0696120bc63aa4ade23d89886cc18153",
+    "src/lib.rs": "16cf2371f413568c2532fd1d09f61d36a4eabd849c0ad7d212ae6d304355f9f6",
+    "src/main.rs": "ffc84149b0566ea5f58def7c5377ad6d8d8fb80f634ed947851d3dbb409ac729",
+    "src/manifest.rs": "50cd1251afb9e25998a9e1b0c1c9d4a92aad2506b828227c6b72a339a8039aae",
+    "src/shadow.rs": "e324844f7bbcee631d2aa972dca08c90c8607d9f45343ed1195d92998743b6a8",
+    "src/snapshot.rs": "35e1fa191954965edbad0fd9e0ff3de62cc4d4fb3f3bb3b073cc5025208f3080",
+    "src/snapshot_restore.rs": "39706da00964a719ea94ee2de4dd979e37bd5ab8d105b23ea3bdcaba3719967b",
+    "src/snapshot_scan.rs": "08e19892becda60c65734d890ec807599c94d30ecfb183488137d8ef14ddfbc0",
+    "src/storage.rs": "8711b50a2801521f9db2741fd87e9a4473915089225fb7d93e6976ba7a6d68ec",
+    "src/transaction.rs": "1fe1a6994497eee1602468606c6fba5c8a4579824382cb5d191c854a183c220d",
+    "src/tree.rs": "aa61f6462f3eabe3504a68e87f853436b2af5ff28503999b3a474f00ab38f1e6",
+    "src/watch.rs": "021281ecdb667b50f7b7a5c79d4a47ba16a0d0e65b1e3a0a6684c0abfbf110ae",
+    "src/watch_auto.rs": "d8b236b3b217d5742a2222d8b29ea2bba9a1c0ba2d5f8a10c31dfc6f08f32e3c"
+  },
+  "whole_process_metrics": {
+    "elapsed_seconds": 1115.73,
+    "cpu_user_seconds": 17.52,
+    "cpu_system_seconds": 51.0,
+    "peak_rss_bytes": 211632128,
+    "includes": "dataset generation, all warmups/candidates/oracles, and temporary-directory cleanup",
+    "native_output": "     1115.73 real        17.52 user        51.00 sys\n           211632128  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               13460  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n             1800907  voluntary context switches\n               64040  involuntary context switches\n       1085553959443  instructions retired\n        286927726559  cycles elapsed\n           164184592  peak memory footprint\n"
+  }
+}

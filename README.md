@@ -100,7 +100,8 @@ contents after debounced batches. Defaults are 300 ms quiet time and 2,000 ms
 maximum batch collection delay. Both must be integer milliseconds satisfying
 1 <= quiet <= maximum <= 60,000; flags may be given once each in either order.
 The maximum prevents event-collection starvation, not OS latency or slow disk I/O.
-There is no background daemon or incremental processing.
+There is no background daemon or incremental publication. A bounded Milestone D
+shadow candidate is measured and compared, while C still validates and publishes.
 
 Output is newline-delimited JSON. `status: "watching"` means event intake is ready;
 wait for `snapshot_created` or `skipped_identical` to know baseline work completed:
@@ -166,6 +167,20 @@ reliably detectable, and network/pseudo filesystems may emit no useful events.
 No periodic reconciliation timer or polling fallback is added in C; idle processing
 blocks on channels. Only macOS is validated. See [automatic capture details and
 measurements](docs/automatic-capture.md) and [native backend limitations](https://docs.rs/notify/latest/notify/).
+
+## Incremental shadow foundation
+
+`watch` additionally emits `kind: "shadow"` diagnostics with candidate construction
+and C full-validation timings. A bounded in-memory cache and typed dirty scopes
+rebuild affected paths speculatively, including known hard-link aliases. Shadow
+roots are never published or used to skip C validation. Cache refresh comes only
+from a successful C scan, and a mismatch is reported/discarded. No persistent cache,
+format change or new CLI option was added.
+
+See [shadow behavior, limits, differential tests and separate benchmarks](docs/shadow-merkle.md).
+Small balanced-tree edit candidates measured about 1.0 / 2.0 / 17.8 ms at 1,000 /
+10,000 / 100,000 files. These are candidate-only diagnostics, not end-to-end speedups
+or substitutes for C's two-pass validation and durability protocol.
 
 ## Storage and verification
 
@@ -248,7 +263,7 @@ Full restoration performs stronger verification. Listing checks records only.
 
 ## Evidence and next steps
 
-The current suite has 105 passing tests, zero failures/ignored tests on macOS, including
+The current suite has 119 passing tests, zero failures/ignored tests on macOS, including
 five property suites (92 cases) and a complete CLI workflow. Small release-build
 measurements record elapsed time, CPU time, peak RSS and chunk growth, without
 comparisons to other tools or universal speed claims.
@@ -256,8 +271,8 @@ comparisons to other tools or universal speed claims.
 See [validation and measurements](docs/validation.md), [raw measurements](docs/measurements-phase2.json),
 and [architecture, review findings and Phase 3 milestones](docs/architecture.md).
 The reproducible measurement harness is [scripts/measure_phase2.py](scripts/measure_phase2.py).
-Phase 3 Milestones A–C are implemented. Milestones D–E require further approval;
-no incremental tracking has been implemented.
+Phase 3 Milestones A–C and the approved D shadow foundation are implemented.
+Incremental/event-assisted publication remains disabled; further work requires approval.
 
 Verified-existing-object reuse retains BLAKE3 verification. Capture-only directory
 sync batching now uses an object durability barrier before snapshot publication,

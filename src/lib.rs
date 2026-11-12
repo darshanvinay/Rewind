@@ -21,3 +21,6 @@ mod transaction;
 pub mod watch;
 
 mod debounce;
+
+#[cfg(unix)]
+pub mod shadow;

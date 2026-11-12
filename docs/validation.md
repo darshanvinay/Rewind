@@ -1,10 +1,10 @@
-# Validation — Phase 2 and Phase 3 Milestones A–C
+# Validation — Phase 3 C and D shadow foundation
 
-**Current milestone:** Phase 3 C adds automatic durable history with two-pass
-full-source validation, unchanged-root suppression and generation-aware follow-up.
-**105 tests pass**, with zero failures/ignored tests. See the final section and
-[automatic capture measurements](automatic-capture.md). Earlier reports below are
-historical evidence, not current CLI behavior.
+**Current milestone:** The D shadow foundation adds bounded cache structures,
+typed dirty scopes and non-publishing candidate comparisons. **119 tests pass**,
+with zero failures/ignored tests. Milestone C remains the only publisher. See
+[shadow-only measurements](shadow-merkle.md); earlier C/A/B reports below are
+historical evidence, not end-to-end incremental speedup claims.
 
 **Phase 2 follow-up:** Capture directory batching, exclusive writer coordination and
 pending-marker recovery supersede the earlier performance follow-up. See
@@ -470,3 +470,57 @@ TOCTOU, foreground process termination and full-scan costs remain material. Exis
 BLAKE3/no-clobber/file-and-directory sync/recovery guarantees are preserved; macOS
 still does not use F_FULLFSYNC. The completed C implementation adds no incremental
 cache, daemon, retention, GC or Phase 4 functionality. Milestone D awaits approval.
+
+
+## Milestone D foundation — bounded incremental shadow construction
+
+Formatting, Clippy with warnings denied and all **119 tests** passed on macOS
+(39 library + 80 integration entries, including two existing subprocess helpers).
+The release CLI and example builds passed. Existing five property suites retain
+92 generated cases; new deterministic randomized differential coverage performs
+80 filesystem-operation steps. The native/signal/socket suite ran outside the
+Codex sandbox. No dependencies, storage formats, synchronization ordering or
+publication guarantees changed. Linux remains unvalidated.
+
+Twelve new shadow tests cover matching edit roots, intentional missed-event
+mismatch, directory moves/empties, hard links inside/outside the tree, explicit/
+identity/entry/byte/plan invalidation, atomic saves, deletions, type replacements,
+symlinks, storage exclusion, cancellation, preserved mtime/length, read-only storage
+inventories, per-file manifest work limits and randomized operations. Two new live watcher tests confirm the root
+comparison is diagnostic and that a warm cache cannot hide corrupted archive chunks.
+All original C durability, interruption, overflow and concurrency tests still pass.
+
+Separate release measurements:
+
+```sh
+python3 scripts/benchmark_shadow.py --output docs/shadow-candidate-benchmark.json
+python3 scripts/benchmark_automatic.py --trials 1 --mib 32 --many-files 256   --idle-seconds 2 --output docs/shadow-validation-benchmark.json
+```
+
+On Apple M4 / 16 GiB / macOS 15.7.4 / APFS / Rust 1.99.1, balanced trees of 4 KiB
+files yielded single-edit candidate medians of 0.972 / 2.029 / 17.757 ms at 1,000 /
+10,000 / 100,000 files. Corresponding one-pass full-source root-oracle medians were
+15.430 / 183.555 / 4,749.656 ms. These cover different work and are not interchangeable
+validation stages. Every edit candidate read one file and rebuilt two nodes; moves
+and bursts read 100 files. All 27 measured candidate/oracle comparisons matched,
+with zero storage object/record/marker publication by the diagnostic benchmark.
+
+The live 32 MiB trials separated candidate construction from mandatory C validation:
+three edit medians were 67.524 / 9.365 ms candidate and 144.831 / 183.211 ms C full
+validation/commit plus cache collection for one file / 256 files. Measured overall
+edit-to-outcome medians were 0.535 / 0.515 seconds, including debounce and added
+shadow work. Both release trials passed five historical restores and restart
+suppression, with exactly five C records each. No end-to-end speedup is claimed.
+
+C's 100,000-entry observation limit remains unchanged. The 101,001-entry large
+benchmark uses a separately bounded read-only diagnostic scanner, not C publication.
+Cache charges are not literal RSS limits; the entire diagnostic benchmark peaked
+at 201.83 MiB with generation, warmups, old/new seeds and full scans included.
+[Full methodology, ranges, CPU/memory limits and risks](shadow-merkle.md),
+[raw candidate data](shadow-candidate-benchmark.json) and
+[separate C stage data](shadow-validation-benchmark.json) retain the evidence.
+
+Only shadow construction is implemented. A stale shadow root can be plausible;
+matching metadata/events are not proof of source or archive integrity. C still
+performs its full checks and is the only publisher. No event-assisted publication,
+incremental commit/cache transaction, daemon, GC or Phase 4 work was started.

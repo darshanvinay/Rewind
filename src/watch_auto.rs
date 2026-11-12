@@ -9,11 +9,13 @@ use std::{
 struct CaptureJob {
     generation: u64,
     reason: &'static str,
+    dirty: crate::shadow::DirtyPlan,
 }
 struct Completion {
     job: CaptureJob,
     result: Result<AutomaticCapture>,
     elapsed: Duration,
+    shadow: serde_json::Value,
 }
 struct CaptureWorker {
     jobs: Option<SyncSender<CaptureJob>>,
@@ -54,25 +56,67 @@ impl Monitor {
         #[cfg(test)]
         let mut test_hook = tests::WORKER_HOOK.with(|h| h.borrow_mut().take());
         let capture = thread::spawn(move || {
+            let mut cache = crate::shadow::MerkleCache::default();
             while let Ok(job) = jobs_rx.recv() {
                 #[cfg(test)]
                 if let Some(hook) = test_hook.take() {
                     hook();
                 }
                 let start = Instant::now();
+                let candidate_start = Instant::now();
+                let candidate = cache.candidate(&job.dirty, &capture_stop);
+                let candidate_ms = candidate_start.elapsed().as_secs_f64() * 1000.0;
+                let validation_start = Instant::now();
                 let result = ChunkStore::open(&store_path).and_then(|store| {
-                    crate::snapshot::scan::automatic(
+                    crate::snapshot::scan::automatic_seeded(
                         &store,
                         &source_path,
                         &capture_stop,
                         Some(identity),
+                        Some(cache.limits()),
                     )
                 });
+                let validation_ms = validation_start.elapsed().as_secs_f64() * 1000.0;
+                let mut shadow = match candidate {
+                    Ok(crate::shadow::ShadowResult::Candidate(candidate)) => {
+                        serde_json::json!({"kind":"shadow","status":"candidate","root_hash":candidate.root_hash,"stats":candidate.stats})
+                    }
+                    Ok(crate::shadow::ShadowResult::NeedsReconciliation { reason }) => {
+                        serde_json::json!({"kind":"shadow","status":"requires_reconciliation","reason":reason})
+                    }
+                    Err(error) => {
+                        serde_json::json!({"kind":"shadow","status":"candidate_error","message":error.to_string()})
+                    }
+                };
+                shadow["candidate_ms"] = candidate_ms.into();
+                shadow["full_validation_ms"] = validation_ms.into();
+                shadow["publisher"] = "milestone_c".into();
+                let result = result.map(|(result, seed)| {
+                    let record = match &result {
+                        AutomaticCapture::Created(r) | AutomaticCapture::Unchanged(r) => r,
+                    };
+                    if let Some(candidate) = shadow.get("root_hash").and_then(|v| v.as_str()) {
+                        let matches = candidate == record.root_hash();
+                        shadow["matches_authoritative"] = matches.into();
+                        if !matches {
+                            shadow["status"] = "mismatch_discarded".into();
+                        }
+                    }
+                    // Only C's validated seed is installed, never the shadow candidate.
+                    cache.install(seed);
+                    result
+                });
+                if result.is_err() {
+                    cache.invalidate(crate::shadow::Invalidation::AttemptFailed);
+                }
+                shadow["cache_entries"] = cache.entry_count().into();
+                shadow["cache_charged_bytes"] = cache.charged_bytes().into();
                 if result_tx
                     .send(Completion {
                         job,
                         result,
                         elapsed: start.elapsed(),
+                        shadow,
                     })
                     .is_err()
                 {
@@ -92,6 +136,7 @@ impl Monitor {
             "backend":format!("{:?}",RecommendedWatcher::kind()),"debounce_ms":self.config.debounce_ms(),"max_delay_ms":self.config.max_delay_ms()}),
         )?;
         let mut debounce = Debouncer::new(self.config);
+        let mut pending_plan = crate::shadow::DirtyPlan::full(crate::shadow::Invalidation::Cold);
         let mut generation = 0_u64;
         let mut active = false;
         let mut ready = true; // Always establish an authoritative startup baseline.
@@ -105,10 +150,13 @@ impl Monitor {
                 generation = generation
                     .checked_add(1)
                     .ok_or_else(|| Error::Invalid("event generation exhausted".into()))?;
+                pending_plan =
+                    crate::shadow::DirtyPlan::full(crate::shadow::Invalidation::EventLoss);
                 debounce.reconcile("queue_overflow_or_oversized_event", now);
             }
             if let Ok(done) = results.try_recv() {
                 active = false;
+                json_line(output, done.shadow)?;
                 match done.result {
                     Ok(outcome) => {
                         failures = 0;
@@ -160,6 +208,9 @@ impl Monitor {
                             serde_json::json!({"kind":"error","fatal":false,"code":"source_unstable_or_transient","message":error.to_string(),
                             "attempt":if failures==0 {3} else {failures},"deferred":failures==0,"retry_in_ms":delay.as_millis()}),
                         )?;
+                        pending_plan = crate::shadow::DirtyPlan::full(
+                            crate::shadow::Invalidation::AttemptFailed,
+                        );
                         debounce.reconcile("source_retry", now);
                         ready = true;
                         reason = "retry";
@@ -193,6 +244,7 @@ impl Monitor {
             if debounce.deadline().is_some_and(|d| now >= d)
                 && let Some(batch) = debounce.take()
             {
+                pending_plan.merge(batch.dirty_plan());
                 reason = if batch.reconciliation_required {
                     "reconciliation"
                 } else {
@@ -217,7 +269,11 @@ impl Monitor {
                     .jobs
                     .as_ref()
                     .unwrap()
-                    .send(CaptureJob { generation, reason })
+                    .send(CaptureJob {
+                        generation,
+                        reason,
+                        dirty: std::mem::take(&mut pending_plan),
+                    })
                     .map_err(|_| Error::Invalid("capture worker disconnected".into()))?;
                 active = true;
                 ready = false;
@@ -274,6 +330,8 @@ impl Monitor {
                         generation = generation
                             .checked_add(1)
                             .ok_or_else(|| Error::Invalid("event generation exhausted".into()))?;
+                        pending_plan =
+                            crate::shadow::DirtyPlan::full(crate::shadow::Invalidation::Ambiguous);
                         debounce.reconcile("source_race", Instant::now());
                         json_line(
                             output,

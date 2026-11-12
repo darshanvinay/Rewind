@@ -278,3 +278,43 @@ fn automatic_capture_scopes_latest_record_to_canonical_source() {
         AutomaticCapture::Unchanged(_)
     ));
 }
+
+#[test]
+fn shadow_diagnostics_compare_roots_but_only_c_publishes() {
+    let (temp, store, source) = fixture();
+    let mut watch = Watch::start(temp.path(), "source");
+    watch.baseline();
+    fs::write(source.join("file"), b"shadow-only construction").unwrap();
+    let created = watch.created();
+    let shadow = watch
+        .seen
+        .iter()
+        .rev()
+        .find(|v| v["kind"] == "shadow")
+        .unwrap();
+    assert_eq!(shadow["publisher"], "milestone_c");
+    assert_eq!(shadow["status"], "candidate");
+    assert_eq!(shadow["matches_authoritative"], true);
+    assert_eq!(shadow["root_hash"], created["root_hash"]);
+    assert_eq!(shadow["stats"]["files_read"], 1);
+    assert!(shadow["cache_entries"].as_u64().unwrap() > 0);
+    watch.stop();
+    assert_eq!(list_snapshots(&store).unwrap().len(), 2);
+}
+
+#[test]
+fn warm_shadow_cache_never_replaces_c_archive_integrity_verification() {
+    let (temp, store, source) = fixture();
+    let mut watch = Watch::start(temp.path(), "source");
+    watch.baseline();
+    let chunk = store
+        .chunk_path(&rewind::hashing::hash(b"initial"))
+        .unwrap();
+    fs::write(chunk, b"corrupt").unwrap();
+    // Source contents are identical; C must still read/verify the archived chunk.
+    fs::write(source.join("file"), b"initial").unwrap();
+    let error = watch.wait(|v| v["kind"] == "error");
+    assert_eq!(error["fatal"], true);
+    assert!(!watch.child.wait().unwrap().success());
+    assert_eq!(list_snapshots(&store).unwrap().len(), 1);
+}

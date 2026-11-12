@@ -54,6 +54,10 @@ pub(super) struct Scan<'a> {
     stop: Option<&'a AtomicBool>,
     expected: Option<&'a Observations>,
     observed: Observations,
+    seed: Option<crate::shadow::SeedBuilder>,
+    record_observations: bool,
+    diagnostic_entries: usize,
+    diagnostic_name_bytes: usize,
 }
 impl Scan<'_> {
     pub(super) fn manual() -> Self {
@@ -62,6 +66,10 @@ impl Scan<'_> {
             stop: None,
             expected: None,
             observed: Observations::default(),
+            seed: None,
+            record_observations: true,
+            diagnostic_entries: 0,
+            diagnostic_name_bytes: 0,
         }
     }
     pub(super) fn cancel(&self) -> Result<()> {
@@ -95,6 +103,13 @@ impl Scan<'_> {
         if self.mode == ScanMode::Manual {
             return Ok(());
         }
+        if !self.record_observations {
+            self.diagnostic_entries += 1;
+            if self.diagnostic_entries > 131_072 {
+                return Err(Error::Invalid("diagnostic scan entry limit".into()));
+            }
+            return Ok(());
+        }
         let stamp = Stamp::new(m);
         if let Some(expected) = self.expected {
             if expected.entries.get(path) != Some(&stamp) {
@@ -112,6 +127,35 @@ impl Scan<'_> {
             self.observed.entries.insert(path.to_owned(), stamp);
         }
         Ok(())
+    }
+    pub(super) fn diagnostic_name(&mut self, bytes: usize) -> Result<()> {
+        if !self.record_observations {
+            self.diagnostic_name_bytes = self.diagnostic_name_bytes.saturating_add(64 + bytes);
+            if self.diagnostic_name_bytes > 32 * 1024 * 1024 {
+                return Err(Error::Invalid("diagnostic scan name limit".into()));
+            }
+        }
+        Ok(())
+    }
+    pub(super) fn seed_file(
+        &mut self,
+        path: &Path,
+        m: &fs::Metadata,
+        target: crate::tree::EntryTarget,
+    ) {
+        if let Some(seed) = &mut self.seed {
+            seed.file(path, m, target);
+        }
+    }
+    pub(super) fn seed_directory(
+        &mut self,
+        path: &Path,
+        m: &fs::Metadata,
+        node: &crate::tree::DirectoryNode,
+    ) {
+        if let Some(seed) = &mut self.seed {
+            seed.directory(path, m, node);
+        }
     }
     pub(super) fn unchanged(
         &self,
@@ -181,6 +225,16 @@ pub(crate) fn automatic(
     stop: &AtomicBool,
     expected_identity: Option<(u64, u64)>,
 ) -> Result<super::AutomaticCapture> {
+    automatic_seeded(store, source, stop, expected_identity, None).map(|(result, _)| result)
+}
+
+pub(crate) fn automatic_seeded(
+    store: &ChunkStore,
+    source: &Path,
+    stop: &AtomicBool,
+    expected_identity: Option<(u64, u64)>,
+    limits: Option<crate::shadow::CacheLimits>,
+) -> Result<(super::AutomaticCapture, Option<crate::shadow::Seed>)> {
     let source: PathBuf = source.components().collect();
     let root: File = rfs::openat(
         rfs::CWD,
@@ -220,8 +274,24 @@ pub(crate) fn automatic(
         stop: Some(stop),
         expected: None,
         observed: Observations::default(),
+        seed: limits.map(|limits| {
+            crate::shadow::SeedBuilder::new(
+                source.clone(),
+                store.root().to_owned(),
+                (current.dev(), current.ino()),
+                identity,
+                limits,
+            )
+        }),
+        record_observations: true,
+        diagnostic_entries: 0,
+        diagnostic_name_bytes: 0,
     };
     let first = capture_directory(&store, &root, &source, identity, 0, &mut probe)?;
+    let seed = probe
+        .seed
+        .take()
+        .and_then(|seed| seed.finish(first.clone()));
     #[cfg(test)]
     auto_tests::after_probe(&source);
     let unchanged = latest.as_ref().is_some_and(|r| r.root_hash() == first);
@@ -231,6 +301,10 @@ pub(crate) fn automatic(
             stop: Some(stop),
             expected: Some(&probe.observed),
             observed: Observations::default(),
+            seed: None,
+            record_observations: true,
+            diagnostic_entries: 0,
+            diagnostic_name_bytes: 0,
         };
         let second = capture_directory(&store, &root, &source, identity, 0, &mut verification)?;
         if first != second {
@@ -238,7 +312,7 @@ pub(crate) fn automatic(
         }
         validate_observations(&root, &source, &probe.observed, stop)?;
         drop(guard);
-        return Ok(super::AutomaticCapture::Unchanged(latest.unwrap()));
+        return Ok((super::AutomaticCapture::Unchanged(latest.unwrap()), seed));
     }
     let store = store.begin_capture_locked(guard)?;
     let mut persistence = Scan {
@@ -246,6 +320,10 @@ pub(crate) fn automatic(
         stop: Some(stop),
         expected: Some(&probe.observed),
         observed: Observations::default(),
+        seed: None,
+        record_observations: true,
+        diagnostic_entries: 0,
+        diagnostic_name_bytes: 0,
     };
     let second = capture_directory(&store, &root, &source, identity, 0, &mut persistence)?;
     if first != second {
@@ -262,7 +340,50 @@ pub(crate) fn automatic(
     auto_tests::after_validation(&source);
     let record = publish_record(&store, second, source_path)?;
     store.finish_capture()?;
-    Ok(super::AutomaticCapture::Created(record))
+    Ok((super::AutomaticCapture::Created(record), seed))
+}
+
+pub(crate) fn diagnostic_seed(
+    store: &ChunkStore,
+    source: &Path,
+    limits: crate::shadow::CacheLimits,
+    stop: &AtomicBool,
+) -> Result<(String, Option<crate::shadow::Seed>)> {
+    let source: PathBuf = source.components().collect();
+    let root: File = rfs::openat(
+        rfs::CWD,
+        &source,
+        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        Mode::empty(),
+    )
+    .map_err(|e| Error::SourceIo(e.into()))?
+    .into();
+    let source = fs::canonicalize(source).map_err(Error::SourceIo)?;
+    let store_root = fs::canonicalize(store.root())?;
+    if source.starts_with(&store_root) {
+        return Err(Error::Invalid("cannot scan store".into()));
+    }
+    let m = root.metadata().map_err(Error::SourceIo)?;
+    let identity = fs::metadata(&store_root)?;
+    let identity = (identity.dev(), identity.ino());
+    let mut scan = Scan {
+        mode: ScanMode::Probe,
+        stop: Some(stop),
+        expected: None,
+        observed: Observations::default(),
+        seed: Some(crate::shadow::SeedBuilder::new(
+            source.clone(),
+            store_root,
+            (m.dev(), m.ino()),
+            identity,
+            limits,
+        )),
+        record_observations: false,
+        diagnostic_entries: 0,
+        diagnostic_name_bytes: 0,
+    };
+    let hash = capture_directory(store, &root, &source, identity, 0, &mut scan)?;
+    Ok((hash.clone(), scan.seed.and_then(|seed| seed.finish(hash))))
 }
 
 #[cfg(test)]

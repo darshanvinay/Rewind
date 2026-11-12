@@ -66,6 +66,33 @@ pub(crate) struct Batch {
     pub reconciliation_required: bool,
     reconciliation_reasons: BTreeSet<&'static str>,
 }
+#[cfg(unix)]
+impl Batch {
+    pub(crate) fn dirty_plan(&self) -> crate::shadow::DirtyPlan {
+        use crate::shadow::{DirtyPlan, DirtyScope, Invalidation};
+        if self
+            .reconciliation_reasons
+            .iter()
+            .any(|r| *r != "rename_scope")
+        {
+            return DirtyPlan::full(Invalidation::EventLoss);
+        }
+        let mut plan = DirtyPlan::default();
+        for change in &self.changes {
+            plan.add(DirtyScope::File(change.path.clone().into()));
+        }
+        for rename in &self.renames {
+            if rename.kind != "rename" || rename.paths.len() != 2 {
+                return DirtyPlan::full(Invalidation::Ambiguous);
+            }
+            for path in &rename.paths {
+                plan.add(DirtyScope::Subtree(path.into()));
+            }
+        }
+        plan
+    }
+}
+
 struct Pending {
     first: Instant,
     last: Instant,

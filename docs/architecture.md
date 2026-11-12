@@ -1,4 +1,4 @@
-# Rewind architecture — Phase 2 and Phase 3 Milestones A–C
+# Rewind architecture — Phase 3 C and D shadow foundation
 
 ## Components and data flow
 
@@ -25,6 +25,7 @@ regular file -> FastCDC -> BLAKE3 chunks -> ordered file manifest
 | `tree` | Sorted directory nodes, canonical bytes, validation and content-addressed persistence. |
 | `snapshot` | Shared descriptor-relative traversal and durable history publication. |
 | `snapshot::scan` | Read-only probe, verified/persistent second pass and temporary stability observations. |
+| `shadow` | Bounded metadata/reference cache, typed dirty scopes, non-publishing candidates and diagnostics. |
 | `watch::automatic` | One capture worker, bounded controller work, generation-aware reconciliation and retries. |
 | `snapshot_restore` | Private staging-tree reconstruction and atomic no-replace publication. |
 | `diff` | Merkle pruning and relative-path content-change reports. |
@@ -579,3 +580,49 @@ marker/objects/records, those hints do not sustain a write/notification feedback
 loop. On restart, a baseline is always scanned and compared under the writer lock.
 No daemon, retention, GC, incremental cache or Phase 4 work was added. Milestone D
 requires a separate cache/invalidation design and approval.
+
+
+## Milestone D foundation — shadow candidates only
+
+The authoritative pipeline remains C. Its existing `automatic` API delegates to
+an internal variant with optional seed collection in the first probe; collection
+cannot choose a root or bypass validation. The worker computes a speculative
+`shadow::MerkleCache` candidate first, runs C, compares roots after C succeeds and
+installs only the bounded C-validated seed. No candidate state is installed. Failed
+attempts invalidate the cache; a seed exceeding budget disables it while C continues.
+
+The cache stores relative source paths, stamps (identity, type, size, mode, links,
+mtime/ctime), manifest references, directory hashes and bounded hard-link aliases.
+It holds no source payloads or per-file descriptors. The path index supplies child
+references for canonical directory reconstruction. It is process-local and tied to
+the binary's v1/default chunking behavior; there is no persistent-cache trust model.
+
+`DirtyPlan` merges typed file/directory/subtree scopes up to 4,096 scopes and 1 MiB
+of paths. Ambiguity, loss, invalid paths or exhausted planning capacity require
+reconciliation. Known paired rename endpoints become subtree scopes; uncertain
+halves remain conservative. The worker's job/result bounds and controller generation
+rules remain unchanged. A pending plan is separate from the active job's owned plan.
+
+Candidates use no-follow operations, relist affected ancestors, read dirty/suspicious
+files, expand known inode aliases, recursively inspect new/moved subtrees and rebuild
+canonical nodes bottom-up. Matching stamps can reuse speculative references only;
+they are not source-unchanged proof. Local stability checks are not a second full
+pass or atomic snapshot. Missing events are explicitly tested to produce stale
+candidates, which never control publication. Source/storage corruption is still
+handled by C's existing verification/recovery rules.
+
+Cache caps: 131,072 entries and 128 MiB logical charge; candidate work and diagnostic
+scans have separate bounds. Actual RSS includes allocator/index/temporary/native
+resources and can exceed a single cache charge. C's original observation cap is
+unchanged; a 100,000-file diagnostic benchmark does not imply C publication support
+for that many files plus directories. Directory nodes remain flat sorted child
+lists, so ancestor fanout contributes work. Path matching currently scans bounded
+scope sets; no O(depth) or constant-time claim is made.
+
+An additive `shadow` JSON result reports candidate time, full C validation/commit
+plus collection time, cache counters and optional root match. Mismatches are
+`mismatch_discarded`. Candidate errors/skips do not replace C. Manual commands and
+all durable publication ordering are unchanged. [Detailed limits, tests, measurements
+and reproduction](shadow-merkle.md) distinguish candidate-only potential from actual
+end-to-end behavior. This is the stopping point; event-assisted publication remains
+unimplemented and requires approval.
