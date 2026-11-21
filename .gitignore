@@ -1,2 +1,4 @@
 /target/
 /.rewind/
+
+__pycache__/
