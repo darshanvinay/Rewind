@@ -7,6 +7,14 @@ use std::fs;
 #[path = "snapshot_scan.rs"]
 pub(crate) mod scan;
 
+/// Source validation recorded at capture time, not an atomic-state guarantee.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceValidation {
+    ManualTraversal,
+    StrictTwoPass,
+}
+
 const MAX_RECORD_BYTES: usize = 64 * 1024;
 
 #[derive(Deserialize)]
@@ -18,6 +26,8 @@ struct SnapshotWire {
     source_path: String,
     created_unix_seconds: u64,
     created_nanoseconds: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_validation: Option<SourceValidation>,
 }
 
 /// A committed capture. Source path and timestamp are history metadata, not part
@@ -30,6 +40,8 @@ pub struct SnapshotRecord {
     source_path: String,
     created_unix_seconds: u64,
     created_nanoseconds: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_validation: Option<SourceValidation>,
 }
 
 impl SnapshotRecord {
@@ -42,7 +54,12 @@ impl SnapshotRecord {
         let raw: SnapshotWire = serde_json::from_slice(&bytes)?;
         crate::hashing::validate_hash(&raw.id)?;
         crate::hashing::validate_hash(&raw.root_hash)?;
-        if raw.version != 1 || raw.id != id || raw.created_nanoseconds >= 1_000_000_000 {
+        if !matches!(
+            (raw.version, raw.source_validation),
+            (1, None) | (2, Some(_))
+        ) || raw.id != id
+            || raw.created_nanoseconds >= 1_000_000_000
+        {
             return Err(Error::Invalid(format!(
                 "invalid or unsupported snapshot record {id}"
             )));
@@ -67,7 +84,13 @@ impl SnapshotRecord {
             source_path: raw.source_path,
             created_unix_seconds: raw.created_unix_seconds,
             created_nanoseconds: raw.created_nanoseconds,
+            source_validation: raw.source_validation,
         })
+    }
+
+    /// None for legacy v1 records: their validation strategy is unknown.
+    pub fn source_validation(&self) -> Option<SourceValidation> {
+        self.source_validation
     }
 
     /// Opaque lowercase hexadecimal ID, distinct even for identical tree roots.
@@ -213,7 +236,12 @@ pub(crate) mod unix {
             capture_directory(&store, &root, &source, identity, 0, &mut Scan::manual())?;
         store.object_barrier()?;
 
-        let record = publish_record(&store, root_hash, source_path)?;
+        let record = publish_record(
+            &store,
+            root_hash,
+            source_path,
+            SourceValidation::ManualTraversal,
+        )?;
         store.finish_capture()?;
         Ok(record)
     }
@@ -222,6 +250,7 @@ pub(crate) mod unix {
         store: &ChunkStore,
         root_hash: String,
         source_path: String,
+        source_validation: SourceValidation,
     ) -> Result<SnapshotRecord> {
         // Only now create/publish history metadata. Failed captures may leave
         // unreferenced objects, but no committed record pointing to partial work.
@@ -249,12 +278,13 @@ pub(crate) mod unix {
         hasher.update(&timestamp.as_secs().to_le_bytes());
         hasher.update(&timestamp.subsec_nanos().to_le_bytes());
         let record = SnapshotRecord {
-            version: 1,
+            version: 2,
             id: hasher.finalize().to_hex().to_string(),
             root_hash,
             source_path,
             created_unix_seconds: timestamp.as_secs(),
             created_nanoseconds: timestamp.subsec_nanos(),
+            source_validation: Some(source_validation),
         };
         let bytes = serde_json::to_vec(&record)?;
         if bytes.len() > MAX_RECORD_BYTES {
