@@ -1,9 +1,13 @@
 [package]
 name = "rewind"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
-description = "Local content-addressed file history foundations"
+rust-version = "1.89"
+description = "Local file history with verified, durable snapshots"
 license = "MIT"
+repository = "https://github.com/darshanvinay/Rewind"
+readme = "README.md"
+include = ["src/**", "tests/**", "examples/**", "scripts/*.py", "scripts/capture_profile/*.py", "scripts/capture_profile/*.rs", "docs/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [dependencies]
 blake3 = "1"
