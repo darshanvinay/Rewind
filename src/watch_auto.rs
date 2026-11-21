@@ -15,6 +15,7 @@ struct Completion {
     job: CaptureJob,
     result: Result<AutomaticCapture>,
     elapsed: Duration,
+    started: Instant,
     shadow: serde_json::Value,
 }
 struct CaptureWorker {
@@ -45,6 +46,21 @@ fn retryable(error: &Error) -> bool {
 impl Monitor {
     /// Foreground automatic history. The event-only `run` API remains available.
     pub fn run_automatic(self, output: &mut impl Write) -> Result<()> {
+        self.run_automatic_with_reconciliation(output, Duration::from_secs(60))
+    }
+
+    /// Periodic authoritative scans also detect changes without usable events.
+    /// The interval is a scheduling target, not a maximum staleness guarantee.
+    pub fn run_automatic_with_reconciliation(
+        self,
+        output: &mut impl Write,
+        interval: Duration,
+    ) -> Result<()> {
+        if !(Duration::from_secs(1)..=Duration::from_secs(86400)).contains(&interval) {
+            return Err(Error::Invalid(
+                "reconciliation interval must be 1..86400 seconds".into(),
+            ));
+        }
         let (jobs_tx, jobs_rx) = mpsc::sync_channel::<CaptureJob>(1);
         let (result_tx, results) = mpsc::sync_channel::<Completion>(1);
         let store_path = self.source.store_root();
@@ -116,6 +132,7 @@ impl Monitor {
                         job,
                         result,
                         elapsed: start.elapsed(),
+                        started: start,
                         shadow,
                     })
                     .is_err()
@@ -133,10 +150,11 @@ impl Monitor {
         json_line(
             output,
             serde_json::json!({"status":"watching","mode":"automatic","root":self.source.root,
-            "backend":format!("{:?}",RecommendedWatcher::kind()),"debounce_ms":self.config.debounce_ms(),"max_delay_ms":self.config.max_delay_ms()}),
+            "capture_mode":"strict","reconcile_interval_secs":interval.as_secs(),"backend":format!("{:?}",RecommendedWatcher::kind()),"debounce_ms":self.config.debounce_ms(),"max_delay_ms":self.config.max_delay_ms()}),
         )?;
         let mut debounce = Debouncer::new(self.config);
         let mut pending_plan = crate::shadow::DirtyPlan::full(crate::shadow::Invalidation::Cold);
+        let mut next_full = Instant::now() + interval;
         let mut generation = 0_u64;
         let mut active = false;
         let mut ready = true; // Always establish an authoritative startup baseline.
@@ -159,6 +177,7 @@ impl Monitor {
                 json_line(output, done.shadow)?;
                 match done.result {
                     Ok(outcome) => {
+                        next_full = done.started + interval;
                         failures = 0;
                         deferred_cycles = 0;
                         retry_at = None;
@@ -169,7 +188,7 @@ impl Monitor {
                         json_line(
                             output,
                             serde_json::json!({"kind":kind,"snapshot_id":record.id(),"root_hash":record.root_hash(),"reason":done.job.reason,
-                            "elapsed_ms":done.elapsed.as_secs_f64()*1000.0,"consistency":"two_pass_validated_observations"}),
+                            "elapsed_ms":done.elapsed.as_secs_f64()*1000.0,"capture_mode":"strict","validation_scope":"full_source","record_source_validation":record.source_validation(),"consistency":"two_pass_validated_observations"}),
                         )?;
                         if generation == done.job.generation
                             && debounce.deadline().is_none()
@@ -253,6 +272,12 @@ impl Monitor {
                 json_line(output, serde_json::to_value(batch)?)?;
                 ready = true;
             }
+            if !active && !ready && now >= next_full {
+                pending_plan =
+                    crate::shadow::DirtyPlan::full(crate::shadow::Invalidation::Explicit);
+                ready = true;
+                reason = "periodic";
+            }
             if ready && !active && retry_at.is_none_or(|deadline| now >= deadline) {
                 if let Err(error) = self.source.check_roots() {
                     json_line(
@@ -283,6 +308,11 @@ impl Monitor {
                 .deadline()
                 .into_iter()
                 .chain(if !active { retry_at } else { None })
+                .chain(if !active && !ready {
+                    Some(next_full)
+                } else {
+                    None
+                })
                 .min();
             let message = match deadline {
                 Some(deadline) => match self
