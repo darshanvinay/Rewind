@@ -1,3 +1,8 @@
+> v1.0 release update (2026-11-20): strict remains the only publisher; fast is
+> explicitly rejected. New history records are v2 with source-validation
+> provenance; v1 remains readable with unknown provenance. Watch now schedules
+> periodic full reconciliation (default 60 seconds). See [release validation](release-1.0.md).
+
 # Rewind architecture — Phase 3 C and D shadow foundation
 
 ## Components and data flow
@@ -85,7 +90,7 @@ marker or migration system yet.
   decimal integers, no whitespace/final newline. Loading must match reserialization
   exactly; alternate key order/escaping/whitespace is not canonical. Tests pin
   canonical bytes. Encoding changes require explicit format-version decisions.
-- **Snapshot record v1:** `version`, `id`, `root_hash`, `source_path`,
+- **Snapshot record v1 (legacy):** `version`, `id`, `root_hash`, `source_path`,
   `created_unix_seconds`, `created_nanoseconds`. Timestamp is taken after traversal
   and before publication. ID is a domain-separated BLAKE3 digest of a uniquely
   allocated random tempfile basename, root hash and timestamp. It is opaque, not a
@@ -93,6 +98,13 @@ marker or migration system yet.
   time. Record loading validates schema/version, filename/ID match, root identity
   syntax, nanosecond range and absolute source path without NUL/dot components.
   JSON order/whitespace need not be canonical for history records.
+- **Snapshot record v2 (current):** the v1 fields plus required `source_validation`,
+  either `manual_traversal` or `strict_two_pass`. New manual and automatic records
+  use v2; old v1 records remain unchanged with unknown validation provenance. A
+  skipped record retains its original provenance; the current attempt reports its
+  full-source validation separately in JSON. Unknown versions/strategies and
+  version/provenance mismatches are rejected. Older readers reject v2.
+
 
 A two-digit shard reduces per-directory object fanout. Reads cap chunks at 16 MiB,
 manifests at 64 MiB, nodes at 16 MiB and records at 64 KiB. A shared reader rejects
@@ -535,8 +547,8 @@ permissions/timestamp resolution and hostile mutations can defeat observations.
 There remains a final-check/publication TOCTOU window. A deterministic test changes
 the source in that window: the first archive contains the valid earlier bytes and
 a retained event drives a second archive of the new bytes. Unreported native loss
-can prevent a follow-up; no filesystem freeze, watcher replay guarantee or periodic
-full reconciliation timer is provided. Quiescent input is necessary when a coherent
+can delay a follow-up until periodic reconciliation. There is no filesystem freeze
+or watcher replay guarantee. Quiescent input is necessary when a coherent
 logical source state is required.
 
 The controller owns debounce state while a single worker owns each synchronous
@@ -626,3 +638,31 @@ all durable publication ordering are unchanged. [Detailed limits, tests, measure
 and reproduction](shadow-merkle.md) distinguish candidate-only potential from actual
 end-to-end behavior. This is the stopping point; event-assisted publication remains
 unimplemented and requires approval.
+
+
+## v1.0 strict release boundary
+
+The CLI accepts `--mode strict` (default), rejects unfinished `--mode fast`, and
+allows `--reconcile-interval-secs 1..86400` (default 60). The library's existing
+`run_automatic` uses 60 seconds; `run_automatic_with_reconciliation` accepts a
+validated duration. The controller includes the next full-check deadline in its
+blocking receive timeout, avoiding an idle polling loop. A successful full attempt
+sets the next deadline relative to that attempt's start. Every strict event-driven
+capture is itself a full reconciliation and advances the deadline. A due scan
+runs even without native events. In-flight scans are not interrupted by the timer;
+source retries retain their bounded backoff. Slow/unstable scans can exceed the
+interval; it is not a maximum source-staleness promise.
+
+All object persistence, locking, pending recovery and commit ordering are unchanged.
+The new provenance is serialized inside the same synced/no-clobber record publication,
+not written afterward. Rust's `Option<SourceValidation>` represents either known
+v2 provenance or unknown v1 provenance (like Python `SourceValidation | None`);
+version/field combinations are checked at the input boundary.
+
+The root-only shadow `Candidate` is deliberately not accepted by a publication API.
+It has neither stored changed recipes nor two-pass affected-path proof nor sealed
+archive verification, so making it a publisher would be unsafe. Fast publication,
+periodic fast eligibility, and strict/fast comparisons remain unfinished; v1.0
+ships strict operation only. Separate full archive verification benchmarks count
+metadata/chunk/whole-file checks without source reads; they are not extracted
+subcomponent timings of strict capture.
