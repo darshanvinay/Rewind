@@ -338,7 +338,7 @@ pub(crate) fn automatic_seeded(
     }
     #[cfg(test)]
     auto_tests::after_validation(&source);
-    let record = publish_record(&store, second, source_path)?;
+    let record = publish_record(&store, second, source_path, SourceValidation::StrictTwoPass)?;
     store.finish_capture()?;
     Ok((super::AutomaticCapture::Created(record), seed))
 }
