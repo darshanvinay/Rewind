@@ -88,7 +88,7 @@ fn malformed_records_ids_and_history_paths_are_rejected() {
         assert!(SnapshotRecord::load(&store, id).is_err());
     }
     for (field, value) in [
-        ("version", serde_json::json!(2)),
+        ("version", serde_json::json!(3)),
         ("id", serde_json::json!(hashing::hash(b"wrong"))),
         ("root_hash", serde_json::json!("../escape")),
         ("source_path", serde_json::json!("relative")),
