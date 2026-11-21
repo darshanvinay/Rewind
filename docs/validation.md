@@ -1,3 +1,12 @@
+# Current release validation
+
+The current v1.0 candidate is documented in [release-1.0.md](release-1.0.md).
+The milestone reports below are historical and retain their original test counts
+and measurements. Strict is the only publisher; fast remains disabled. New records
+use v2 validation provenance and watch includes periodic full reconciliation.
+
+---
+
 # Validation — Phase 3 C and D shadow foundation
 
 **Current milestone:** The D shadow foundation adds bounded cache structures,
