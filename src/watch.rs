@@ -643,6 +643,13 @@ mod unix {
 
 #[cfg(not(unix))]
 impl Monitor {
+    pub fn run_automatic_with_reconciliation(
+        self,
+        _output: &mut impl Write,
+        _interval: std::time::Duration,
+    ) -> Result<()> {
+        Err(Error::Invalid("automatic capture requires Unix".into()))
+    }
     pub fn run_automatic(self, _output: &mut impl Write) -> Result<()> {
         Err(Error::Invalid(
             "automatic watching is supported only on Unix".into(),
