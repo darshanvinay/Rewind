@@ -30,6 +30,9 @@ impl Drop for Watch {
 }
 impl Watch {
     fn start(work: &Path, source: &str) -> Self {
+        Self::start_options(work, source, &[])
+    }
+    fn start_options(work: &Path, source: &str, options: &[&str]) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_rewind"))
             .args([
                 "watch",
@@ -39,6 +42,7 @@ impl Watch {
                 "--max-delay-ms",
                 "250",
             ])
+            .args(options)
             .current_dir(work)
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -317,4 +321,84 @@ fn warm_shadow_cache_never_replaces_c_archive_integrity_verification() {
     assert_eq!(error["fatal"], true);
     assert!(!watch.child.wait().unwrap().success());
     assert_eq!(list_snapshots(&store).unwrap().len(), 1);
+}
+
+#[test]
+fn periodic_strict_reconciliation_skips_identical_without_writing_history() {
+    let (temp, store, _) = fixture();
+    let mut watch = Watch::start_options(
+        temp.path(),
+        "source",
+        &["--mode", "strict", "--reconcile-interval-secs", "1"],
+    );
+    let baseline = watch.baseline();
+    assert_eq!(baseline["capture_mode"], "strict");
+    assert_eq!(baseline["record_source_validation"], "strict_two_pass");
+    let periodic = watch.wait(|v| v["kind"] == "skipped_identical" && v["reason"] == "periodic");
+    assert_eq!(id(&periodic), id(&baseline));
+    watch.stop();
+    assert_eq!(list_snapshots(&store).unwrap().len(), 1);
+    assert!(!store.root().join("capture.pending").exists());
+}
+
+#[test]
+fn provenance_is_versioned_and_legacy_records_remain_unknown() {
+    use rewind::snapshot::{SnapshotRecord, SourceValidation};
+    let (temp, store, source) = fixture();
+    let created = capture_automatic(&store, &source, &AtomicBool::new(false)).unwrap();
+    let AutomaticCapture::Created(record) = created else {
+        panic!("expected baseline")
+    };
+    assert_eq!(
+        record.source_validation(),
+        Some(SourceValidation::StrictTwoPass)
+    );
+    let path = store
+        .root()
+        .join("snapshots")
+        .join(format!("{}.json", record.id()));
+    let mut wire: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    wire["source_validation"] = "fast".into();
+    fs::write(&path, serde_json::to_vec(&wire).unwrap()).unwrap();
+    assert!(SnapshotRecord::load(&store, record.id()).is_err());
+    wire["version"] = 1.into();
+    wire.as_object_mut().unwrap().remove("source_validation");
+    fs::write(&path, serde_json::to_vec(&wire).unwrap()).unwrap();
+    assert_eq!(
+        SnapshotRecord::load(&store, record.id())
+            .unwrap()
+            .source_validation(),
+        None
+    );
+    rewind::restore_snapshot(&store, record.id(), temp.path().join("legacy-restore")).unwrap();
+    assert_eq!(
+        fs::read(temp.path().join("legacy-restore/file")).unwrap(),
+        b"initial"
+    );
+    wire["version"] = 2.into();
+    fs::write(&path, serde_json::to_vec(&wire).unwrap()).unwrap();
+    assert!(SnapshotRecord::load(&store, record.id()).is_err());
+}
+
+#[test]
+fn periodic_scan_detects_idle_archive_corruption_and_fails_closed() {
+    let (temp, store, _) = fixture();
+    let mut watch =
+        Watch::start_options(temp.path(), "source", &["--reconcile-interval-secs", "1"]);
+    watch.baseline();
+    // Archive-only mutations are excluded from source event handling. The timer
+    // must independently wake the worker and verify reused archive objects.
+    let shard = fs::read_dir(store.root().join("chunks"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let chunk = fs::read_dir(shard).unwrap().next().unwrap().unwrap().path();
+    fs::write(chunk, b"corrupted").unwrap();
+    let error = watch.wait(|v| v["kind"] == "error" && v["fatal"] == true);
+    assert_eq!(error["code"], "integrity_storage_or_source_policy");
+    assert!(!watch.child.wait().unwrap().success());
+    assert_eq!(list_snapshots(&store).unwrap().len(), 1);
+    assert!(!store.root().join("capture.pending").exists());
 }
