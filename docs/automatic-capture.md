@@ -1,3 +1,8 @@
+> v1.0 update: strict is the sole publisher, `--mode fast` is rejected, records
+> use v2 provenance (legacy v1 remains readable), and full reconciliation is now
+> scheduled every 60 seconds by default. The C checkpoint below is historical.
+> Current results: [release validation](release-1.0.md).
+
 # Automatic snapshots — Phase 3 Milestone C
 
 Implemented and validated on 2026-11-10 (America/Toronto). `rewind watch` is now a
