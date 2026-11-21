@@ -33,9 +33,9 @@ def resources(pid):
 
 
 class Watch:
-    def __init__(self, binary, work):
+    def __init__(self, binary, work, reconcile_interval=60):
         self.events = queue.Queue()
-        self.process = subprocess.Popen([str(binary), 'watch', 'source', '--debounce-ms', '300', '--max-delay-ms', '2000'],
+        self.process = subprocess.Popen([str(binary), 'watch', 'source', '--debounce-ms', '300', '--max-delay-ms', '2000', '--reconcile-interval-secs', str(reconcile_interval)],
                                         cwd=work, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         self.lines = []
         def reader():
@@ -45,7 +45,7 @@ class Watch:
         self.wait(lambda v: v.get('status') == 'watching')
 
     def wait(self, predicate):
-        deadline = time.perf_counter() + 120
+        deadline = time.perf_counter() + 600
         while True:
             event = self.events.get(timeout=max(0.01, deadline - time.perf_counter()))
             self.lines.append(event)
@@ -72,7 +72,7 @@ class Watch:
             self.process.wait()
 
 
-def run(binary, work, payload, files, trial, idle_seconds):
+def run(binary, work, payload, files, trial, idle_seconds, verify_all=True, reconcile_interval=60):
     source = work / 'source'
     source.mkdir()
     width = len(payload) // files
@@ -83,7 +83,7 @@ def run(binary, work, payload, files, trial, idle_seconds):
     expected = state(source)
     subprocess.run([str(binary), 'init'], cwd=work, check=True, capture_output=True)
     start = time.perf_counter()
-    watcher = Watch(binary, work)
+    watcher = Watch(binary, work, reconcile_interval)
     samples = []
     versions = []
     try:
@@ -137,13 +137,17 @@ def run(binary, work, payload, files, trial, idle_seconds):
         watcher.stop()
         assert counts(work)['snapshots'] == len(versions) == 5
         source.rename(work/'source-moved')
-        for i, (identifier, expected) in enumerate(versions):
+        restored_versions = versions if verify_all else versions[-1:]
+        for i, (identifier, expected) in enumerate(restored_versions):
             subprocess.run([str(binary),'restore-snapshot',identifier,f'restore-{i}'],cwd=work,check=True,capture_output=True)
             assert state(work/f'restore-{i}') == expected
+        verifier = binary.parent / 'examples' / 'verify_archive'
+        archive_verification = [json.loads(subprocess.check_output(
+            [str(verifier), str(work/'.rewind'), versions[-1][0]], text=True)) for _ in range(3)]
         # Restart while restoring the same canonical location: no new record.
         (work/'source-moved').rename(source)
         restart_start = time.perf_counter()
-        restarted = Watch(binary,work)
+        restarted = Watch(binary,work,reconcile_interval)
         try:
             result = restarted.outcome()
             assert result['kind'] == 'skipped_identical'
@@ -156,7 +160,7 @@ def run(binary, work, payload, files, trial, idle_seconds):
         return {'files':files,'source_bytes':len(payload),'trial':trial,'samples':samples,'idle':idle,'restart':restart,
                 'outcomes':[v for v in watcher.lines if v.get('kind') in ['snapshot_created','skipped_identical']],
                 'shadow_diagnostics':[v for v in watcher.lines if v.get('kind') == 'shadow'],
-                'historical_restores_verified':len(versions)}
+                'historical_restores_verified':len(restored_versions), 'standalone_archive_verification':archive_verification}
     finally:
         watcher.close()
 
@@ -173,7 +177,7 @@ def main():
     if args.trials < 1 or not 1 <= args.mib <= 256 or args.many_files < 2 or size % args.many_files or args.idle_seconds < 1:
         parser.error('Use positive trials, 1..256 MiB, >=2 files dividing total bytes, and idle >=1 s')
     root = Path(__file__).resolve().parents[1]
-    subprocess.run(['cargo','build','--release','--locked'],cwd=root,check=True)
+    subprocess.run(['cargo','build','--release','--bins','--examples','--locked'],cwd=root,check=True)
     binary = root/'target/release/rewind'
     source_hash = {str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((root/'src').glob('*.rs'))}
     report = {'measured_at_utc':datetime.now(timezone.utc).isoformat(),
@@ -189,6 +193,8 @@ def main():
                         'worker_timing':'reported elapsed_ms covers lock/recovery, read-only probe, second verify/persistent scan, final metadata checks, and commit; excludes debounce',
                         'idle':'ps TIME delta (aggregate process CPU across threads, 0.01-s resolution) / interval; RSS endpoints, not peak or kernel cache',
                         'cache':'warm/uncontrolled; generated and SHA256-read before watcher; no eviction; APFS local temporary data',
+                        'archive_verification':'separate warm full archive pass on final snapshot using verify_archive example; includes nodes, manifests, chunk and whole-file hashes; not a timed subcomponent of worker and must not be subtracted from worker timings',
+                        'fast_mode':'not implemented; no strict/fast speedup can be measured',
                         'limitations':'small local dataset; idle windows short; no syscall tracing, power-loss tests or atomic source-state guarantee'},
               'samples':[]}
     payload = hashlib.shake_256(b'rewind-auto-c-v1').digest(size)
