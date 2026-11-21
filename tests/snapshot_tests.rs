@@ -105,7 +105,8 @@ fn nested_capture_unique_records_and_historical_graphs() {
         .unwrap(),
     )
     .unwrap();
-    assert_eq!(raw["version"], 1);
+    assert_eq!(raw["version"], 2);
+    assert_eq!(raw["source_validation"], "manual_traversal");
     assert_eq!(raw["id"], first.id());
     assert_eq!(raw["root_hash"], first.root_hash());
     let first_root = DirectoryNode::load(&store, first.root_hash()).unwrap();
